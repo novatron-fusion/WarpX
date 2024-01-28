@@ -75,11 +75,20 @@ struct ExternalFieldFromFile3DCyl
         auto Br = interp_(arrayr, ir, iz, rel_r, rel_z);
         auto Bz = interp_(arrayz, ir, iz, rel_r, rel_z);
 
-        amrex::RealVect retvect = {
-            Br * x / r,
-            Br * y / r, 
-            Bz
-        };
+        amrex::RealVect retvect;
+        if (r == 0) {
+            retvect = {
+                0,
+                0,
+                Bz
+            };
+        } else {
+            retvect = {
+                Br * x / r,
+                Br * y / r,
+                Bz
+            };
+        }
 
 #ifdef DEBUG_EXTERNAL_FIELD_INTERPOLATION
         { 
