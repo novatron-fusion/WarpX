@@ -294,7 +294,6 @@ MultiParticleContainer::ReadParameters ()
                 amrex::Gpu::copy(amrex::Gpu::hostToDevice, FCr_data_host, FCr_data_host + total_extent, FCr_data_gpu.data());
                 amrex::Gpu::copy(amrex::Gpu::hostToDevice, FCz_data_host, FCz_data_host + total_extent, FCz_data_gpu.data());
 
-                std::cerr << "Allocating external field!" << std::endl;
                 auto efff = new ExternalFieldFromFile3DCyl(
                     amrex::RealVect {gridSpacing[0], gridSpacing[1], 0}, 
                     amrex::RealVect {static_cast<amrex::Real>(offset[0]), static_cast<amrex::Real>(offset[1]), 0 }, 
