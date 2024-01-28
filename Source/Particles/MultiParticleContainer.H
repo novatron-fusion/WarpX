@@ -25,6 +25,7 @@
 #include "Utils/WarpXConst.H"
 #include "WarpXParticleContainer.H"
 #include "ParticleBoundaries.H"
+#include "Gather/GetExternalFields.H"
 
 #include <AMReX_BLassert.H>
 #include <AMReX_Box.H>
@@ -318,6 +319,7 @@ public:
     amrex::Gpu::DeviceVector<amrex::ParticleReal> d_repeated_plasma_lens_lengths;
     amrex::Gpu::DeviceVector<amrex::ParticleReal> d_repeated_plasma_lens_strengths_E;
     amrex::Gpu::DeviceVector<amrex::ParticleReal> d_repeated_plasma_lens_strengths_B;
+    ExternalFieldFromFile3DCyl* external_field_from_file_B = nullptr;
 
 #ifdef WARPX_QED
     /**
