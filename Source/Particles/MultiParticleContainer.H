@@ -319,7 +319,10 @@ public:
     amrex::Gpu::DeviceVector<amrex::ParticleReal> d_repeated_plasma_lens_lengths;
     amrex::Gpu::DeviceVector<amrex::ParticleReal> d_repeated_plasma_lens_strengths_E;
     amrex::Gpu::DeviceVector<amrex::ParticleReal> d_repeated_plasma_lens_strengths_B;
+
+#if defined(WARPX_DIM_3D)
     ExternalFieldFromFile3DCyl* external_field_from_file_B = nullptr;
+#endif
 
 #ifdef WARPX_QED
     /**

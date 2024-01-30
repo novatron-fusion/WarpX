@@ -20,7 +20,7 @@
 
 #include <fstream>
 
-
+#if defined(WARPX_DIM_3D)
 struct ExternalFieldFromFile3DCyl 
 {
     const amrex::RealVect dx;
@@ -102,6 +102,7 @@ struct ExternalFieldFromFile3DCyl
         return retvect;
     }
 };
+#endif
 
 
 /** \brief Functor class that assigns external
@@ -142,7 +143,9 @@ struct GetExternalEBField
     const amrex::ParticleReal* AMREX_RESTRICT m_uy = nullptr;
     const amrex::ParticleReal* AMREX_RESTRICT m_uz = nullptr;
 
+#if defined(WARPX_DIM_3D)
     const ExternalFieldFromFile3DCyl* Bfield_file_external_particle_cyl = nullptr;
+#endif
 
     std::optional<LatticeElementFinderDevice> d_lattice_element_finder;
 
@@ -204,6 +207,7 @@ struct GetExternalEBField
             By = m_Byfield_partparser(x, y, z, lab_time);
             Bz = m_Bzfield_partparser(x, y, z, lab_time);
         }
+#if defined(WARPX_DIM_3D)
         else if (m_Btype == ExternalFieldInitType::ReadFromFile)
         {
             amrex::ParticleReal x, y, z;
@@ -218,6 +222,7 @@ struct GetExternalEBField
             By = B[1];
             Bz = B[2];
         }
+#endif
 
         if (m_Etype == RepeatedPlasmaLens ||
             m_Btype == RepeatedPlasmaLens)

@@ -258,6 +258,7 @@ MultiParticleContainer::ReadParameters ()
             amrex::Gpu::synchronize();
         }
 
+#if defined(WARPX_DIM_3D)
         if (m_E_ext_particle_s == "read_from_file" || 
             m_B_ext_particle_s == "read_from_file") 
         {
@@ -311,7 +312,7 @@ MultiParticleContainer::ReadParameters ()
                 WARPX_ALWAYS_ASSERT_WITH_MESSAGE(false, "3D can only read external fields from files with thetaMode geometry");
             }
         }
-
+#endif
 
         // particle species
         pp_particles.queryarr("species_names", species_names);
