@@ -10,6 +10,7 @@
 #ifdef AMREX_USE_EB
 #  include "Utils/Parser/ParserUtils.H"
 #  include "Utils/TextMsg.H"
+#  include "PolygonXYIF.H"
 
 #  include <AMReX.H>
 #  include <AMReX_Array.H>
@@ -20,6 +21,7 @@
 #  include <AMReX_BoxList.H>
 #  include <AMReX_Config.H>
 #  include <AMReX_EB2.H>
+#  include <AMReX_EB2_IF.H>
 #  include <AMReX_EB_utils.H>
 #  include <AMReX_FabArray.H>
 #  include <AMReX_FabFactory.H>
@@ -86,6 +88,9 @@ WarpX::InitEB ()
     const amrex::ParmParse pp_warpx("warpx");
     std::string impf;
     pp_warpx.query("eb_implicit_function", impf);
+    std::vector<std::string> polygon;
+    pp_warpx.queryarr("eb_polygon", polygon);
+
     if (! impf.empty()) {
         auto eb_if_parser = utils::parser::makeParser(impf, {"x", "y", "z"});
         ParserIF pif(eb_if_parser.compile<3>());
@@ -96,6 +101,22 @@ WarpX::InitEB ()
          // number (e.g., maxLevel()+20) for multigrid solvers.  Because the coarse
          // level has only 1/8 of the cells on the fine level, the memory usage should
          // not be an issue.
+        amrex::EB2::Build(gshop, Geom(maxLevel()), maxLevel(), maxLevel()+20);
+    } else if(!polygon.empty()) {          
+        for(auto p: polygon) 
+            std::cout << "polygon: " << p << std::endl;
+        auto curve = parse_curve(polygon);
+
+        std::cout << "curve:";
+        for (auto p : curve)
+            std::cout << "(" << p.first << ", " << p.second << ") ";
+        std::cout << std::endl;
+
+        PolygonXYIF polygonXY(curve, true);
+        auto latheif = amrex::EB2::lathe(polygonXY);
+
+        auto gshop = amrex::EB2::makeShop(latheif, polygonXY);
+
         amrex::EB2::Build(gshop, Geom(maxLevel()), maxLevel(), maxLevel()+20);
     } else {
         amrex::ParmParse pp_eb2("eb2");
