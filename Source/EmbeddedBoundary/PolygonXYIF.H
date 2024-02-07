@@ -12,7 +12,12 @@
 
 // For all implicit functions, >0: body; =0: boundary; <0: fluid
 
-typedef std::pair<amrex::Real, amrex::Real> Point2D;
+struct Point2D {
+    amrex::Real r, z;
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Point2D(amrex::Real r_, amrex::Real z_) : r(r_), z(z_) {}
+};
+
 typedef std::vector<Point2D> Curve;
 
 Curve parse_curve(std::vector<std::string> strarr)
@@ -32,7 +37,7 @@ Curve parse_curve(std::vector<std::string> strarr)
     // res[2] is the optional exponent for the first number
     z = std::stod(res[3]);
     // res[4] is the optional exponent for the second number
-    curve.push_back(std::make_pair((amrex::Real)r, (amrex::Real)z));
+    curve.push_back(Point2D((amrex::Real)r, (amrex::Real)z));
   }
   return curve;
 }
@@ -54,17 +59,18 @@ public:
     PolygonXYIF& operator= (const PolygonXYIF& rhs) = delete;
     PolygonXYIF& operator= (PolygonXYIF&& rhs) = delete;
 
-    AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::Real operator() (AMREX_D_DECL(amrex::Real x, amrex::Real y, amrex::Real z))
         const noexcept
     {
         amrex::Real dist = 1;
         for (size_t i = 0; i < m_curve.size() - 1; i++)
-            dist *= intersects_outwards(std::make_pair(x, y), i);
+            dist *= intersects_outwards(Point2D(x, y), i);
         return dist;
     }
 
-    inline amrex::Real operator() (const amrex::RealArray& p) const noexcept
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    amrex::Real operator() (const amrex::RealArray& p) const noexcept
     {
         return this->operator() (AMREX_D_DECL(p[0], p[1], p[2]));
     }
@@ -73,7 +79,7 @@ protected:
     Curve            m_curve;
     bool             m_inside;
 
-    AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::Real intersects_outwards(Point2D p, int lineseg_i) const noexcept
     {
         // Determine if the point is radially inside the line segment from curve[lineseg_i] to curve[lineseg_i+1].
@@ -81,24 +87,24 @@ protected:
         Point2D a = m_curve[lineseg_i];
         Point2D b = m_curve[lineseg_i + 1];
 
-        if (a.first <= p.first && b.first <= p.first) // point is completely outside the linesegment
+        if (a.r <= p.r && b.r <= p.r) // point is completely outside the linesegment
             return 1; // not inside
-        if (a.second < p.second && b.second < p.second) // point is completely above the linesegment
+        if (a.z < p.z && b.z < p.z) // point is completely above the linesegment
             return 1; // not inside
-        if (a.second >= p.second && b.second >= p.second) // point is completely below the linesegment
+        if (a.z >= p.z && b.z >= p.z) // point is completely below the linesegment
             return 1; // not inside
-        if (a.first > p.first && b.first > p.first && a.second <= p.second && p.second <= b.second) // point is completely inside the linesegment
+        if (a.r > p.r && b.r > p.r && a.z <= p.z && p.z <= b.z) // point is completely inside the linesegment
             return -1; // inside
 
         // no clear bounding box decision can be made. Check for real if the point lies to the left or right of the line segment
 
-        auto p_minus_a = std::make_pair(p.first - a.first, p.second - a.second);
-        auto b_minus_a = std::make_pair(b.first - a.first, b.second - a.second);
+        auto p_minus_a = Point2D(p.r - a.r, p.z - a.z);
+        auto b_minus_a = Point2D(b.r - a.r, b.z - a.z);
 
         // check the sign of the third component of the cross product of (p-a) x (b-a)
 
-        auto cross = (p_minus_a.first * b_minus_a.second) - (p_minus_a.second * b_minus_a.first);
-        if (a.second < b.second)
+        auto cross = (p_minus_a.r * b_minus_a.z) - (p_minus_a.z * b_minus_a.r);
+        if (a.z < b.z)
             return cross;
         else
             return -cross;

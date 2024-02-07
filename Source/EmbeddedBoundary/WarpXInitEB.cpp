@@ -109,7 +109,7 @@ WarpX::InitEB ()
 
         std::cout << "curve:";
         for (auto p : curve)
-            std::cout << "(" << p.first << ", " << p.second << ") ";
+            std::cout << "(" << p.r << ", " << p.z << ") ";
         std::cout << std::endl;
 
         PolygonXYIF polygonXY(curve, true);
