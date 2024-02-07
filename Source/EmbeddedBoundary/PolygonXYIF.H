@@ -93,7 +93,7 @@ protected:
             return 1; // not inside
         if (a.z >= p.z && b.z >= p.z) // point is completely below the linesegment
             return 1; // not inside
-        if (a.r > p.r && b.r > p.r && a.z <= p.z && p.z <= b.z) // point is completely inside the linesegment
+        if (a.r > p.r && b.r > p.r && a.z < p.z && p.z <= b.z) // point is completely inside the linesegment
             return -1; // inside
 
         // no clear bounding box decision can be made. Check for real if the point lies to the left or right of the line segment
