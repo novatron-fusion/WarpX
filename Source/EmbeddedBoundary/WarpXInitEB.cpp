@@ -103,17 +103,25 @@ WarpX::InitEB ()
          // not be an issue.
         amrex::EB2::Build(gshop, Geom(maxLevel()), maxLevel(), maxLevel()+20);
     } else if(!polygon.empty()) {          
-        for(auto p: polygon) 
-            std::cout << "polygon: " << p << std::endl;
-        amrex::Vector<amrex::Real> r_vec, z_vec;
+        amrex::Vector<amrex::Real> r_vec(0), z_vec(0);
         parse_curve(polygon, r_vec, z_vec);
 
-        std::cout << "curve:";
-        //for (auto p : curve)
-        //    std::cout << "(" << p.r << ", " << p.z << ") ";
-        std::cout << std::endl;
+        amrex::Real *r_data, *z_data;
 
-        PolygonXYIF polygonXY(r_vec, z_vec);
+#ifdef AMREX_USE_GPU
+        amrex::Gpu::DeviceVector<amrex::Real> r_gpuvec(r_vec.size());
+        amrex::Gpu::DeviceVector<amrex::Real> z_gpuvec(z_vec.size());
+        amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, r_vec.begin(), r_vec.end(), r_gpuvec.begin());
+        amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, z_vec.begin(), z_vec.end(), z_gpuvec.begin());
+        amrex::Gpu::synchronize();
+        r_data = r_gpuvec.data();
+        z_data = z_gpuvec.data();
+#else
+        r_data = r_vec.data();
+        z_data = z_vec.data();
+#endif
+
+        PolygonXYIF polygonXY(r_data, z_data, r_vec.size());
         auto latheif = amrex::EB2::lathe(polygonXY);
 
         auto gshop = amrex::EB2::makeShop(latheif, polygonXY);

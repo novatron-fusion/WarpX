@@ -15,7 +15,7 @@ namespace
 {
     // For all implicit functions, >0: body; =0: boundary; <0: fluid
 
-    void parse_curve(std::vector<std::string> strarr, amrex::Vector<amrex::Real> r_vec, amrex::Vector<amrex::Real> z_vec)
+    void parse_curve(std::vector<std::string> strarr, amrex::Vector<amrex::Real> &r_vec, amrex::Vector<amrex::Real> &z_vec)
     {
         std::string float_regex = "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?";
         std::regex exp(" *\\( *(" + float_regex + ") *, *(" + float_regex + ") *\\) *");
@@ -40,14 +40,11 @@ namespace
         : public amrex::GPUable
     {
     public:
-        PolygonXYIF(amrex::Vector<amrex::Real> r_vec, amrex::Vector<amrex::Real> z_vec)
-            : m_r(r_vec.data()),
-              m_z(z_vec.data()),
-              m_n(r_vec.size())
+        PolygonXYIF(amrex::Real* r, amrex::Real *z, size_t n)
+            : m_r(r),
+              m_z(z),
+              m_n(n)
         {
-            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
-                r_vec.size() == z_vec.size(),
-                "Length of r_vec and z_vec must be equal");
         }
 
         ~PolygonXYIF() {}
@@ -57,23 +54,20 @@ namespace
         PolygonXYIF &operator=(const PolygonXYIF &rhs) = delete;
         PolygonXYIF &operator=(PolygonXYIF &&rhs) = delete;
 
+        AMREX_GPU_DEVICE AMREX_FORCE_INLINE
         amrex::Real
         operator()(AMREX_D_DECL(amrex::Real x, amrex::Real y, amrex::Real z))
             const noexcept
         {
-            //amrex::Real dist = 1;
+            amrex::Real dist = 1;
 
-            if (x < 0.1 + abs(y))
-                return -1;
-            else if (x == 0.1 + abs(y))
-                return 0;
-            else    
-                return 1;
-            //for (size_t i = 0; i < m_n - 1; i++)
-            //    dist *= intersects_outwards(x, y, i);
-            //return dist;
+            for (size_t i = 0; i < m_n - 1; i++)
+                dist *= intersects_outwards(x, y, i);
+
+            return dist;
         }
 
+        AMREX_GPU_DEVICE AMREX_FORCE_INLINE
         amrex::Real
         operator()(const amrex::RealArray &p) const noexcept
         {
@@ -85,7 +79,7 @@ namespace
         amrex::Real *m_z;
         size_t m_n;
 
-        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        AMREX_GPU_DEVICE AMREX_FORCE_INLINE
             amrex::Real
             intersects_outwards(amrex::Real r, amrex::Real z, int i) const noexcept
         {
