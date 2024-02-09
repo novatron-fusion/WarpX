@@ -105,14 +105,15 @@ WarpX::InitEB ()
     } else if(!polygon.empty()) {          
         for(auto p: polygon) 
             std::cout << "polygon: " << p << std::endl;
-        auto curve = parse_curve(polygon);
+        amrex::Vector<amrex::Real> r_vec, z_vec;
+        parse_curve(polygon, r_vec, z_vec);
 
         std::cout << "curve:";
-        for (auto p : curve)
-            std::cout << "(" << p.r << ", " << p.z << ") ";
+        //for (auto p : curve)
+        //    std::cout << "(" << p.r << ", " << p.z << ") ";
         std::cout << std::endl;
 
-        PolygonXYIF polygonXY(curve, true);
+        PolygonXYIF polygonXY(r_vec, z_vec);
         auto latheif = amrex::EB2::lathe(polygonXY);
 
         auto gshop = amrex::EB2::makeShop(latheif, polygonXY);
