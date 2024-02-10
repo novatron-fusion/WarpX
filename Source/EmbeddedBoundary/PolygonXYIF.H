@@ -11,39 +11,73 @@
 #include <algorithm>
 #include <regex>
 
+#include <boost/geometry.hpp>
+#include <boost/geometry/geometries/point_xy.hpp>
+#include <boost/geometry/geometries/polygon.hpp>
+#include <boost/geometry/geometries/multi_polygon.hpp>
+
+typedef boost::geometry::model::d2::point_xy<amrex::Real> point_t;
+typedef boost::geometry::model::polygon<point_t> polygon_t;
+typedef boost::geometry::model::multi_polygon<polygon_t> mpolygon_t;
+
 namespace
 {
     // For all implicit functions, >0: body; =0: boundary; <0: fluid
 
-    void parse_curve(std::vector<std::string> strarr, amrex::Vector<amrex::Real> &r_vec, amrex::Vector<amrex::Real> &z_vec)
+    inline void add_jump(std::vector<amrex::Real> &r, std::vector<amrex::Real> &z, std::vector<size_t> &jumps)
     {
-        std::string float_regex = "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?";
-        std::regex exp(" *\\( *(" + float_regex + ") *, *(" + float_regex + ") *\\) *");
-
-        for (auto str : strarr)
+        if (jumps.size() > 0 && jumps[jumps.size() - 1] == r.size() - 1)
         {
-            std::smatch res;
-            if (!std::regex_match(str, res, exp))
-                throw std::invalid_argument("cannot parse pair of floats");
-            double r, z;
-            // res[0] is the entire match
-            r = std::stod(res[1]);
-            // res[2] is the optional exponent for the first number
-            z = std::stod(res[3]);
-            // res[4] is the optional exponent for the second number
-            r_vec.push_back((amrex::Real)r);
-            z_vec.push_back((amrex::Real)z);
+            r.pop_back();
+            z.pop_back();
         }
+        else
+        {
+            jumps.push_back(r.size());
+        }
+    } 
+    
+    template <typename T>
+    inline void expand_ring(const T &polygon, std::vector<amrex::Real> &r, std::vector<amrex::Real> &z, std::vector<size_t> &jumps)
+    {
+        for (auto p : polygon)
+        {
+            if (p.x() == 0 && r[r.size() - 1] == 0)
+                add_jump(r, z, jumps);
+            r.push_back(p.x());
+            z.push_back(p.y());
+        }
+        add_jump(r, z, jumps);
+    }
+    
+    void expand_multipolygon(const mpolygon_t &multipolygon, std::vector<amrex::Real> &r, std::vector<amrex::Real> &z, std::vector<size_t> &jumps)
+    {
+        for (auto polygon : multipolygon)
+        {
+            expand_ring(polygon.outer(), r, z, jumps);
+            for (auto ring : polygon.inners())
+                expand_ring(ring, r, z, jumps);
+        }
+    }
+
+    void parse_multipolygon(const std::string &wkt, std::vector<amrex::Real> &r, std::vector<amrex::Real> &z, std::vector<size_t> &jumps) {
+        mpolygon_t multipolygon;
+
+        boost::geometry::read_wkt(wkt, multipolygon);
+        
+        expand_multipolygon(multipolygon, r, z, jumps);
     }
 
     class PolygonXYIF
         : public amrex::GPUable
     {
     public:
-        PolygonXYIF(amrex::Real* r, amrex::Real *z, size_t n)
+        PolygonXYIF(amrex::Real* r, amrex::Real *z, size_t n, size_t *jumps, size_t n_jumps)
             : m_r(r),
               m_z(z),
-              m_n(n)
+              m_n(n),
+              m_jumps(jumps),
+              m_n_jumps(n_jumps)
         {
         }
 
@@ -61,8 +95,15 @@ namespace
         {
             amrex::Real dist = 1;
 
-            for (size_t i = 0; i < m_n - 1; i++)
+            size_t i_jump = 0;
+
+            for (size_t i = 0; i < m_n - 1; i++) {
+                if(i_jump < m_n_jumps && m_jumps[i_jump] == i+1) {
+                    i_jump++;
+                    continue;
+                }
                 dist *= intersects_outwards(x, y, i);
+            }
 
             return dist;
         }
@@ -78,6 +119,9 @@ namespace
         amrex::Real *m_r;
         amrex::Real *m_z;
         size_t m_n;
+
+        size_t *m_jumps;
+        size_t m_n_jumps;
 
         AMREX_GPU_DEVICE AMREX_FORCE_INLINE
             amrex::Real
