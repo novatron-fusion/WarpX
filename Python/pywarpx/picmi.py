@@ -1652,7 +1652,7 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
 
         assert sum(x is not None 
                    for x in [stl_file, implicit_function, wkt_file]
-                   ), Exception('Only one between implicit_function, '
+                   ) == 1, Exception('One between implicit_function, '
                                 'stl_file and wkt_file can be specified')
 
         self.implicit_function = implicit_function
