@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
         auto& warpx = WarpX::GetInstance();
 
         warpx.InitData();
-
+        printf("After InitData()");
         warpx.Evolve();
 
         amrex::Print() <<

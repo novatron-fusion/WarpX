@@ -102,7 +102,7 @@ WarpX::InitEB ()
          // level has only 1/8 of the cells on the fine level, the memory usage should
          // not be an issue.
         amrex::EB2::Build(gshop, Geom(maxLevel()), maxLevel(), maxLevel()+20);
-    } else if(!wkt_file.empty()) {         
+    } else if(!wkt_file.empty()) {
         std::ifstream wkt_multipolygon_file(wkt_file);
         std::string wkt_multipolygon(std::istreambuf_iterator<char>{wkt_multipolygon_file}, {});
 
@@ -158,7 +158,7 @@ WarpX::ComputeEdgeLengths (std::array< std::unique_ptr<amrex::MultiFab>, 3 >& ed
 
     auto const &flags = eb_fact.getMultiEBCellFlagFab();
     auto const &edge_centroid = eb_fact.getEdgeCent();
-#ifdef WARPX_DIM_XZ
+#ifdef WARPX_DI
     edge_lengths[1]->setVal(0.);
 #endif
     for (amrex::MFIter mfi(flags); mfi.isValid(); ++mfi){
@@ -175,7 +175,6 @@ WarpX::ComputeEdgeLengths (std::array< std::unique_ptr<amrex::MultiFab>, 3 >& ed
                                          edge_lengths[idim]->nGrowVect());
             amrex::FabType fab_type = flags[mfi].getType(box);
             auto const &edge_lengths_dim = edge_lengths[idim]->array(mfi);
-
             if (fab_type == amrex::FabType::regular) {
                 // every cell in box is all regular
                 amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE (int i, int j, int k) {

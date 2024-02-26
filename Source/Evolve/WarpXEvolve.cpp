@@ -163,7 +163,6 @@ WarpX::Evolve (int numsteps)
                 FillBoundaryAux(guard_cells.ng_UpdateAux);
             }
         }
-
         // If needed, deposit the initial ion charge and current densities that
         // will be used to update the E-field in Ohm's law.
         if (step == step_begin &&
@@ -185,7 +184,6 @@ WarpX::Evolve (int numsteps)
         // gather fields, push particles, deposit sources, update fields
 
         ExecutePythonCallback("particleinjection");
-
         if (evolve_scheme == EvolveScheme::ImplicitPicard ||
             evolve_scheme == EvolveScheme::SemiImplicitPicard) {
             OneStep_ImplicitPicard(cur_time);
@@ -222,7 +220,6 @@ WarpX::Evolve (int numsteps)
                 "do_subcycling = " + std::to_string(do_subcycling)
                 + " is an unsupported do_subcycling type.");
         }
-
         // Resample particles
         // +1 is necessary here because value of step seen by user (first step is 1) is different than
         // value of step in code (first step is 0)
@@ -492,7 +489,6 @@ WarpX::OneStep_nosub (Real cur_time)
 
         EvolveB(0.5_rt * dt[0], DtType::FirstHalf); // We now have B^{n+1/2}
         FillBoundaryB(guard_cells.ng_FieldSolver, WarpX::sync_nodal_points);
-
         if (WarpX::em_solver_medium == MediumForEM::Vacuum) {
             // vacuum medium
             EvolveE(dt[0]); // We now have E^{n+1}
