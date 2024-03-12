@@ -22,6 +22,7 @@
 #include <AMReX_TagBox.H>
 
 #include <AMReX_BaseFwd.H>
+#include "EmbeddedBoundary/PolygonXYIF.H"
 
 using namespace amrex;
 
@@ -33,6 +34,12 @@ WarpX::ErrorEst (int lev, TagBoxArray& tags, Real /*time*/, int /*ngrow*/)
 
     amrex::ParserExecutor<3> ref_parser;
     if (ref_patch_parser) { ref_parser = ref_patch_parser->compile<3>(); }
+
+
+    auto wkt_parser = ref_wkt_parser = std::move(ref_wkt_parser) {
+        return ref_wkt_parser->ray_casting(x, y, z);
+    };
+
     const auto ftlo = fine_tag_lo;
     const auto fthi = fine_tag_hi;
 #ifdef AMREX_USE_OMP
@@ -58,6 +65,8 @@ WarpX::ErrorEst (int lev, TagBoxArray& tags, Real /*time*/, int /*ngrow*/)
                 amrex::Real unused = 0.0;
                 tag_val = (ref_parser(unused, unused, pos[0]) == 1);
 #endif
+            } else if(wkt_specified) {
+                tag_val = (wkt_parser(pos[0], pos[1], pos[2]) == 1);
             } else {
                 tag_val = (pos > ftlo && pos < fthi);
             }

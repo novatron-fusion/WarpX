@@ -35,8 +35,8 @@ namespace
         {
             jumps.push_back(r.size());
         }
-    } 
-    
+    }
+
     template <typename T>
     inline void expand_ring(const T &polygon, std::vector<amrex::Real> &r, std::vector<amrex::Real> &z, std::vector<size_t> &jumps)
     {
@@ -49,7 +49,7 @@ namespace
         }
         add_jump(r, z, jumps);
     }
-    
+
     void expand_multipolygon(const mpolygon_t &multipolygon, std::vector<amrex::Real> &r, std::vector<amrex::Real> &z, std::vector<size_t> &jumps)
     {
         for (auto polygon : multipolygon)
@@ -64,7 +64,7 @@ namespace
         mpolygon_t multipolygon;
 
         boost::geometry::read_wkt(wkt, multipolygon);
-        
+
         expand_multipolygon(multipolygon, r, z, jumps);
     }
 
@@ -72,6 +72,8 @@ namespace
         : public amrex::GPUable
     {
     public:
+        PolygonXYIF() {};
+
         PolygonXYIF(amrex::Real* r, amrex::Real *z, size_t n, size_t *jumps, size_t n_jumps)
             : m_r(r),
               m_z(z),
@@ -87,6 +89,16 @@ namespace
         PolygonXYIF(PolygonXYIF &&rhs) noexcept = default;
         PolygonXYIF &operator=(const PolygonXYIF &rhs) = delete;
         PolygonXYIF &operator=(PolygonXYIF &&rhs) = delete;
+
+        void
+        set(amrex::Real* r, amrex::Real *z, size_t n, size_t *jumps, size_t n_jumps) {
+            m_r = r;
+            m_z = z;
+            m_n = n;
+            m_jumps = jumps;
+            m_n_jumps = n_jumps;
+        }
+
 
         AMREX_GPU_DEVICE AMREX_FORCE_INLINE
         amrex::Real
@@ -114,6 +126,27 @@ namespace
         {
             return this->operator()(AMREX_D_DECL(p[0], p[1], p[2]));
         }
+
+        AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+        amrex::Real
+        ray_casting(AMREX_D_DECL(amrex::Real x, amrex::Real y, amrex::Real z))
+            const noexcept
+        {
+            amrex::Real dist = 1;
+
+            size_t i_jump = 0;
+            amrex::Real r = sqrt(x * x + y * y);
+            for (size_t i = 0; i < m_n - 1; i++) {
+                if(i_jump < m_n_jumps && m_jumps[i_jump] == i+1) {
+                    i_jump++;
+                    continue;
+                }
+                dist *= intersects_outwards(r, z, i);
+            }
+
+            return dist;
+        }
+
 
     protected:
         amrex::Real *m_r;

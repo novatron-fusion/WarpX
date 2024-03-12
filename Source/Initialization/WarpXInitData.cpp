@@ -1236,12 +1236,11 @@ void WarpX::InitializeEBGridData (int lev)
         ComputeFaceAreas(m_face_areas[lev], eb_fact);
         ScaleAreas(m_face_areas[lev], CellSize(lev));
 
-        if (WarpX::electromagnetic_solver_id == ElectromagneticSolverAlgo::ECT) {
+        if (WarpX::electromagnetic_solver_id == ElectromagneticSolverAlgo::ECT && lev == maxLevel()) {
             MarkCells();
             ComputeFaceExtensions();
         }
     }
-    printf("lev %d", lev);
     if (lev == maxLevel())
         ComputeDistanceToEB();
 // }

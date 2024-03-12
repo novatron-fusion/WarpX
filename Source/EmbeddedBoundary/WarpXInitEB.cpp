@@ -91,7 +91,7 @@ WarpX::InitEB ()
     std::string wkt_file;
     pp_warpx.query("wkt_file", wkt_file);
 
-    if (! impf.empty()) {
+    if (!impf.empty()) {
         auto eb_if_parser = utils::parser::makeParser(impf, {"x", "y", "z"});
         ParserIF pif(eb_if_parser.compile<3>());
         auto gshop = amrex::EB2::makeShop(pif, eb_if_parser);
@@ -127,7 +127,7 @@ WarpX::InitEB ()
 #else
         r_data = r_vec.data();
         z_data = z_vec.data();
-        jump_data = z_vec.data();
+        jump_data = jump_vec.data();
 #endif
 
         PolygonXYIF polygonXY(r_data, z_data, r_vec.size(), jump_data, jump_vec.size());

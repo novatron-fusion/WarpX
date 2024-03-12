@@ -1011,12 +1011,16 @@ WarpX::ReadParameters ()
             bool fine_tag_lo_specified = utils::parser::queryArrWithParser(pp_warpx, "fine_tag_lo", lo);
             bool fine_tag_hi_specified = utils::parser::queryArrWithParser(pp_warpx, "fine_tag_hi", hi);
             std::string ref_patch_function;
-            bool parser_specified = pp_warpx.query("ref_patch_function(x,y,z)",ref_patch_function);
+            std::string wkt_file;
+
+            bool parser_specified = pp_warpx.query("ref_patch_function(x,y,z)", ref_patch_function);
+            bool wkt_specified = pp_warpx.query("wkt_file", wkt_file);
+
             WARPX_ALWAYS_ASSERT_WITH_MESSAGE( ((fine_tag_lo_specified && fine_tag_hi_specified) ||
-                                                parser_specified ),
+                                                parser_specified || wkt_specified),
                                                 "For max_level > 0, you need to either set\
-                                                warpx.fine_tag_lo and warpx.fine_tag_hi\
-                                                or warpx.ref_patch_function(x,y,z)");
+                                                warpx.fine_tag_lo and warpx.fine_tag_hi,\
+                                                warpx.ref_patch_function(x,y,z), or warpx.wkt_file");
 
             if ( (fine_tag_lo_specified && fine_tag_hi_specified) && parser_specified) {
                ablastr::warn_manager::WMRecordWarning("Refined patch", "Both fine_tag_lo,fine_tag_hi\
@@ -1026,10 +1030,39 @@ WarpX::ReadParameters ()
             if (fine_tag_lo_specified && fine_tag_hi_specified) {
                 fine_tag_lo = RealVect{lo};
                 fine_tag_hi = RealVect{hi};
+            } else if(wkt_specified) {
+                std::ifstream wkt_multipolygon_file(wkt_file);
+                std::string wkt_multipolygon(std::istreambuf_iterator<char>{wkt_multipolygon_file}, {});
+
+                amrex::Vector<amrex::Real> r_vec(0), z_vec(0);
+                amrex::Vector<size_t> jump_vec(0);
+                parse_multipolygon(wkt_multipolygon, r_vec, z_vec, jump_vec);
+
+                amrex::Real *r_data, *z_data;
+                size_t *jump_data;
+
+#ifdef AMREX_USE_GPU
+                amrex::Gpu::DeviceVector<amrex::Real> r_gpuvec(r_vec.size());
+                amrex::Gpu::DeviceVector<amrex::Real> z_gpuvec(z_vec.size());
+                amrex::Gpu::DeviceVector<size_t> jump_gpuvec(jump_vec.size());
+                amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, r_vec.begin(), r_vec.end(), r_gpuvec.begin());
+                amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, z_vec.begin(), z_vec.end(), z_gpuvec.begin());
+                amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, jump_vec.begin(), jump_vec.end(), jump_gpuvec.begin());
+                amrex::Gpu::synchronize();
+                r_data = r_gpuvec.data();
+                z_data = z_gpuvec.data();
+                jump_data = jump_gpuvec.data();
+#else
+                r_data = r_vec.data();
+                z_data = z_vec.data();
+                jump_data = jump_vec.data();
+#endif
+                ref_wkt_parser = std::make_unique<PolygonXYIF>(
+                r_data, z_data, r_vec.size(), jump_data, jump_vec.size());
             } else {
                 utils::parser::Store_parserString(pp_warpx, "ref_patch_function(x,y,z)", ref_patch_function);
                 ref_patch_parser = std::make_unique<amrex::Parser>(
-                    utils::parser::makeParser(ref_patch_function,{"x","y","z"}));
+                utils::parser::makeParser(ref_patch_function,{"x","y","z"}));
             }
         }
 
