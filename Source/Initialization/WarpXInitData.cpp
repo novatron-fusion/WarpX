@@ -1216,14 +1216,16 @@ void WarpX::CheckGuardCells()
 void WarpX::InitializeEBGridData (int lev)
 {
 #ifdef AMREX_USE_EB
-    // Throw a warning if EB is on and particle_shape > 1
-    bool flag_eb_on = not fieldEBFactory(lev).isAllRegular();
+    if (lev == maxLevel()) {
+        // Throw a warning if EB is on and particle_shape > 1
+        bool flag_eb_on = not fieldEBFactory(lev).isAllRegular();
 
-    if ((nox > 1 or noy > 1 or noz > 1) and flag_eb_on)
-    {
-        ablastr::warn_manager::WMRecordWarning("Particles",
-            "when algo.particle_shape > 1, numerical artifacts will be present when\n"
-            "particles are close to embedded boundaries");
+        if ((nox > 1 or noy > 1 or noz > 1) and flag_eb_on)
+        {
+            ablastr::warn_manager::WMRecordWarning("Particles",
+                "when algo.particle_shape > 1, numerical artifacts will be present when\n"
+                "particles are close to embedded boundaries");
+        }
     }
 
     if (WarpX::electromagnetic_solver_id != ElectromagneticSolverAlgo::PSATD ) {
