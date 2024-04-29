@@ -29,7 +29,7 @@ struct ExternalFieldFromFile3DCyl
     const amrex::Array4<amrex::Real const> arrayt;
     const amrex::Array4<amrex::Real const> arrayz;
     const amrex::Gpu::DeviceVector<amrex::Real> datar;
-    const amrex::Gpu::DeviceVector<amrex::Real> datar;
+    const amrex::Gpu::DeviceVector<amrex::Real> datat;
     const amrex::Gpu::DeviceVector<amrex::Real> dataz;
     public:
     ExternalFieldFromFile3DCyl(
@@ -43,7 +43,7 @@ struct ExternalFieldFromFile3DCyl
         dx(dx_),
         origin(origin_),
         arrayr(datar_.data(), {0,0,0}, shape_, 1),
-        arrayz(datat_.data(), {0,0,0}, shape_, 1),
+        arrayt(datat_.data(), {0,0,0}, shape_, 1),
         arrayz(dataz_.data(), {0,0,0}, shape_, 1),
         datar(std::move(datar_)),
         datat(std::move(datat_)),
@@ -78,7 +78,7 @@ struct ExternalFieldFromFile3DCyl
             return amrex::RealVect();
 
         auto Br = interp_(arrayr, ir, iz, rel_r, rel_z);
-        auto Bt = interp_(arrart, ir, iz, rel_r, rel_z);
+        auto Bt = interp_(arrayt, ir, iz, rel_r, rel_z);
         auto Bz = interp_(arrayz, ir, iz, rel_r, rel_z);
 
         amrex::RealVect retvect;
