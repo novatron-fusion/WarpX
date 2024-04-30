@@ -19,6 +19,8 @@
 #include "Utils/WarpXConst.H"
 #include "Utils/WarpXProfilerWrapper.H"
 
+#include "Initialization/ExternalField.H"
+
 #include <AMReX_Array.H>
 #include <AMReX_REAL.H>
 
@@ -187,6 +189,12 @@ public:
     std::array< std::unique_ptr<amrex::Parser>, 3> m_J_external_parser;
     std::array< amrex::ParserExecutor<4>, 3> m_J_external;
     bool m_external_field_has_time_dependence = false;
+
+    // Initialization type for external current on the grid
+    ExternalFieldType J_ext_grid_type = ExternalFieldType::default_zero;
+
+    // Path of the file where external current is stored
+    std::string external_fields_path;
 
     // Declare multifabs specifically needed for the hybrid-PIC model
     amrex::Vector<            std::unique_ptr<amrex::MultiFab>      > rho_fp_temp;

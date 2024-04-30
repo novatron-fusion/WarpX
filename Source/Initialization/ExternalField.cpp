@@ -19,7 +19,7 @@
 namespace
 {
 
-    enum class EMFieldType{E, B};
+    enum class EMFieldType{E, B, J};
 
     template <EMFieldType T>
     ExternalFieldType string_to_external_field_type(std::string s)
