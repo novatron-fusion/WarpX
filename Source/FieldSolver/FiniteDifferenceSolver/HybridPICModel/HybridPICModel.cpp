@@ -12,6 +12,8 @@
 #include "FieldSolver/Fields.H"
 #include "WarpX.H"
 
+#include "Utils/Algorithms/LinearInterpolation.H"
+
 using namespace amrex;
 using namespace warpx::fields;
 
@@ -50,19 +52,17 @@ void HybridPICModel::ReadParameters ()
     m_elec_temp *= PhysConst::q_e;
 
     // external currents
-    std::string J_ext_grid_s;
+    pp_hybrid.query("Jx_external_grid_function(x,y,z,t)", m_Jx_ext_grid_function);
+    pp_hybrid.query("Jy_external_grid_function(x,y,z,t)", m_Jy_ext_grid_function);
+    pp_hybrid.query("Jz_external_grid_function(x,y,z,t)", m_Jz_ext_grid_function);
+
     pp_hybrid.query("J_external_init_style", J_ext_grid_s);
-    J_ext_grid_type = string_to_external_field_type<EMFieldType::J>(J_ext_grid_s);
 
-    if (J_ext_grid_type == ExternalFieldType::parse_ext_grid_function) {
-        pp_hybrid.query("Jx_external_grid_function(x,y,z,t)", m_Jx_ext_grid_function);
-        pp_hybrid.query("Jy_external_grid_function(x,y,z,t)", m_Jy_ext_grid_function);
-        pp_hybrid.query("Jz_external_grid_function(x,y,z,t)", m_Jz_ext_grid_function);
-    }
-
-    if (J_ext_grid_type == ExternalFieldType::read_from_file){
+    amrex::Print() << J_ext_grid_s << "\n";
+    if (J_ext_grid_s == "read_from_file"){
             const std::string read_fields_from_path="./";
             pp_hybrid.query("read_fields_from_path", external_fields_path);
+            amrex::Print() << external_fields_path << "\n";
     }
 }
 
@@ -146,22 +146,20 @@ void HybridPICModel::InitData ()
     const std::set<std::string> resistivity_symbols = m_resistivity_parser->symbols();
     m_resistivity_has_J_dependence += resistivity_symbols.count("J");
 
-    if (J_ext_grid_type == ExternalFieldType::parse_ext_grid_function) {
-        m_J_external_parser[0] = std::make_unique<amrex::Parser>(
-            utils::parser::makeParser(m_Jx_ext_grid_function,{"x","y","z","t"}));
-        m_J_external_parser[1] = std::make_unique<amrex::Parser>(
-            utils::parser::makeParser(m_Jy_ext_grid_function,{"x","y","z","t"}));
-        m_J_external_parser[2] = std::make_unique<amrex::Parser>(
-            utils::parser::makeParser(m_Jz_ext_grid_function,{"x","y","z","t"}));
-        m_J_external[0] = m_J_external_parser[0]->compile<4>();
-        m_J_external[1] = m_J_external_parser[1]->compile<4>();
-        m_J_external[2] = m_J_external_parser[2]->compile<4>();
+    m_J_external_parser[0] = std::make_unique<amrex::Parser>(
+        utils::parser::makeParser(m_Jx_ext_grid_function,{"x","y","z","t"}));
+    m_J_external_parser[1] = std::make_unique<amrex::Parser>(
+        utils::parser::makeParser(m_Jy_ext_grid_function,{"x","y","z","t"}));
+    m_J_external_parser[2] = std::make_unique<amrex::Parser>(
+        utils::parser::makeParser(m_Jz_ext_grid_function,{"x","y","z","t"}));
+    m_J_external[0] = m_J_external_parser[0]->compile<4>();
+    m_J_external[1] = m_J_external_parser[1]->compile<4>();
+    m_J_external[2] = m_J_external_parser[2]->compile<4>();
 
-        // check if the external current parsers depend on time
-        for (int i=0; i<3; i++) {
-            const std::set<std::string> J_ext_symbols = m_J_external_parser[i]->symbols();
-            m_external_field_has_time_dependence += J_ext_symbols.count("t");
-        }
+    // check if the external current parsers depend on time
+    for (int i=0; i<3; i++) {
+        const std::set<std::string> J_ext_symbols = m_J_external_parser[i]->symbols();
+        m_external_field_has_time_dependence += J_ext_symbols.count("t");
     }
 
     auto & warpx = WarpX::GetInstance();
@@ -257,13 +255,17 @@ void HybridPICModel::InitData ()
 #else
         const auto edge_lengths = std::array< std::unique_ptr<amrex::MultiFab>, 3 >();
 #endif
-    if (J_ext_grid_type == ExternalFieldType::parse_ext_grid_function) {
-        GetCurrentExternal(edge_lengths, lev);
-    }
-    if (J_ext_grid_type == ExternalFieldType::read_from_file) {
-        ReadCurrentExternalFromFile(external_fields_path, edge_lengths, lev, current_fp_external[lev][0].get(), "J", "x");
-        ReadCurrentExternalFromFile(external_fields_path, edge_lengths, lev, current_fp_external[lev][1].get(), "J", "y");
-        ReadCurrentExternalFromFile(external_fields_path, edge_lengths, lev, current_fp_external[lev][2].get(), "J", "z");
+        amrex::Print() << "INFO J ext style ----------------------------------------------------------\n";
+        if (J_ext_grid_s == "parse_ext_grid_function") {
+            amrex::Print() << "parse_ext_grid_function" << "\n";
+            GetCurrentExternal(edge_lengths, lev);
+        }
+        if (J_ext_grid_s == "read_from_file") {
+            amrex::Print() << "read_from_file" << "\n";
+            ReadCurrentExternalFromFile(external_fields_path, edge_lengths, lev, current_fp_external[lev][0].get(), "J", "x");
+            ReadCurrentExternalFromFile(external_fields_path, edge_lengths, lev, current_fp_external[lev][1].get(), "J", "y");
+            ReadCurrentExternalFromFile(external_fields_path, edge_lengths, lev, current_fp_external[lev][2].get(), "J", "z");
+        }
     }
 }
 
@@ -614,7 +616,7 @@ HybridPICModel::ReadCurrentExternalFromFile (
 } // End function HybridPICModel::ReadCurrentExternalFromFile
 #else // WARPX_USE_OPENPMD && !WARPX_DIM_1D_Z && !defined(WARPX_DIM_XZ)
 void
-WarpX::ReadExternalFieldFromFile (
+HybridPICModel::ReadExternalFieldFromFile (
     const std::string& , 
     const std::array< std::unique_ptr<amrex::MultiFab>, 3>& , 
     int , 

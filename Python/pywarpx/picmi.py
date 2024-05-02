@@ -1267,6 +1267,7 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
     def __init__(self, grid, Te=None, n0=None, gamma=None,
                  n_floor=None, plasma_resistivity=None,
                  plasma_hyper_resistivity=None, substeps=None,
+                 J_external_init_style=None, read_from_file=None,
                  Jx_external_function=None, Jy_external_function=None,
                  Jz_external_function=None, **kw):
         self.grid = grid
@@ -1280,6 +1281,9 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         self.plasma_hyper_resistivity = plasma_hyper_resistivity
 
         self.substeps = substeps
+
+        self.J_external_init_style = J_external_init_style
+        self.read_from_file = read_from_file
 
         self.Jx_external_function = Jx_external_function
         self.Jy_external_function = Jy_external_function
@@ -1313,7 +1317,9 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
             pywarpx.my_constants.mangle_expression(self.plasma_resistivity, self.mangle_dict)
         )
         pywarpx.hybridpicmodel.plasma_hyper_resistivity = self.plasma_hyper_resistivity
-        pywarpx.hybridpicmodel.substeps = self.substeps
+        pywarpx.hybridpicmodel.J_external_init_style = self.J_external_init_style
+        pywarpx.hybridpicmodel.read_from_file = self.read_from_file
+        
         pywarpx.hybridpicmodel.__setattr__(
             'Jx_external_grid_function(x,y,z,t)',
             pywarpx.my_constants.mangle_expression(self.Jx_external_function, self.mangle_dict)

@@ -19,8 +19,6 @@
 #include "Utils/WarpXConst.H"
 #include "Utils/WarpXProfilerWrapper.H"
 
-#include "Initialization/ExternalField.H"
-
 #include <AMReX_Array.H>
 #include <AMReX_REAL.H>
 
@@ -62,6 +60,20 @@ public:
     void GetCurrentExternal (
         std::array< std::unique_ptr<amrex::MultiFab>, 3> const& edge_lengths,
         int lev
+    );
+
+    /**
+     * \brief
+     * Function to read the external current from a file and populate the
+     * external current multifab. Note: this is a static external current.
+     */
+    void ReadCurrentExternalFromFile (
+        const std::string& read_fields_from_path, 
+        const std::array< std::unique_ptr<amrex::MultiFab>, 3>& edge_lengths,
+        int lev, 
+        amrex::MultiFab* mf,
+        const std::string& F_name, 
+        const std::string& F_component
     );
 
     /**
@@ -190,11 +202,10 @@ public:
     std::array< amrex::ParserExecutor<4>, 3> m_J_external;
     bool m_external_field_has_time_dependence = false;
 
-    // Initialization type for external current on the grid
-    ExternalFieldType J_ext_grid_type = ExternalFieldType::default_zero;
-
     // Path of the file where external current is stored
-    std::string external_fields_path;
+    std::string external_fields_path = "0.0";
+
+    std::string J_ext_grid_s = "0.0";
 
     // Declare multifabs specifically needed for the hybrid-PIC model
     amrex::Vector<            std::unique_ptr<amrex::MultiFab>      > rho_fp_temp;
