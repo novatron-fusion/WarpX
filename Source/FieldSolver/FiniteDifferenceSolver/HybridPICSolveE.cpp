@@ -371,6 +371,7 @@ void FiniteDifferenceSolver::HybridPICSolveE (
     std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Jifield,
     std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Jextfield,
     std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Bfield,
+    std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Bextfield,
     std::unique_ptr<amrex::MultiFab> const& rhofield,
     std::unique_ptr<amrex::MultiFab> const& Pefield,
     std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& edge_lengths,
@@ -390,7 +391,7 @@ void FiniteDifferenceSolver::HybridPICSolveE (
 #else
 
         HybridPICSolveECartesian <CartesianYeeAlgorithm> (
-            Efield, Jfield, Jifield, Jextfield, Bfield, rhofield, Pefield,
+            Efield, Jfield, Jifield, Jextfield, Bfield, Bextfield, rhofield, Pefield,
             edge_lengths, lev, hybrid_model, include_resistivity_term
         );
 
@@ -727,6 +728,7 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
     std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Jifield,
     std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Jextfield,
     std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Bfield,
+    std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Bextfield,
     std::unique_ptr<amrex::MultiFab> const& rhofield,
     std::unique_ptr<amrex::MultiFab> const& Pefield,
     std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& edge_lengths,
@@ -808,6 +810,9 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
         Array4<Real const> const& Bx = Bfield[0]->const_array(mfi);
         Array4<Real const> const& By = Bfield[1]->const_array(mfi);
         Array4<Real const> const& Bz = Bfield[2]->const_array(mfi);
+        Array4<Real const> const& Bextx = Bextfield[0]->const_array(mfi);
+        Array4<Real const> const& Bexty = Bextfield[1]->const_array(mfi);
+        Array4<Real const> const& Bextz = Bextfield[2]->const_array(mfi);
 
         // Loop over the cells and update the nodal E field
         amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE (int i, int j, int k){
@@ -829,16 +834,16 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
 
             // calculate enE = (J - Ji) x B
             enE_nodal(i, j, k, 0) = (
-                (jy_interp - jiy_interp - Jexty(i, j, k)) * Bz_interp
-                - (jz_interp - jiz_interp - Jextz(i, j, k)) * By_interp
+                (jy_interp - jiy_interp - Jexty(i, j, k)) * (Bz_interp + Bextz(i, j, k))
+                - (jz_interp - jiz_interp - Jextz(i, j, k)) * (By_interp + Bexty(i, j, k))
             );
             enE_nodal(i, j, k, 1) = (
-                (jz_interp - jiz_interp - Jextz(i, j, k)) * Bx_interp
-                - (jx_interp - jix_interp - Jextx(i, j, k)) * Bz_interp
+                (jz_interp - jiz_interp - Jextz(i, j, k)) * (Bx_interp + Bextx(i, j, k))
+                - (jx_interp - jix_interp - Jextx(i, j, k)) * (Bz_interp + Bextz(i, j, k))
             );
             enE_nodal(i, j, k, 2) = (
-                (jx_interp - jix_interp - Jextx(i, j, k)) * By_interp
-                - (jy_interp - jiy_interp - Jexty(i, j, k)) * Bx_interp
+                (jx_interp - jix_interp - Jextx(i, j, k)) * (By_interp + Bexty(i, j, k))
+                - (jy_interp - jiy_interp - Jexty(i, j, k)) * (Bx_interp + Bextz(i, j, k))
             );
         });
 
