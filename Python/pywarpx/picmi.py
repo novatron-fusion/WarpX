@@ -1271,7 +1271,8 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
                  Jz_external_function=None,
                  Bx_external_function=None, By_external_function=None,
                  Bz_external_function=None,
-                 B_external_init_style=None, **kw):
+                 B_external_init_style=None, 
+                 read_fields_from_path=None, **kw):
         self.grid = grid
         self.method = "hybrid"
 
@@ -1285,6 +1286,8 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         self.substeps = substeps
 
         self.B_external_init_style = B_external_init_style
+
+        self.read_fields_from_path = read_fields_from_path
 
         self.Jx_external_function = Jx_external_function
         self.Jy_external_function = Jy_external_function

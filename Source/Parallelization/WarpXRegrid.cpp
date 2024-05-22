@@ -208,6 +208,7 @@ WarpX::RemakeLevel (int lev, Real /*time*/, const BoxArray& ba, const Distributi
                 RemakeMultiFab(m_hybrid_pic_model->current_fp_temp[lev][idim], true);
                 RemakeMultiFab(m_hybrid_pic_model->current_fp_ampere[lev][idim], false);
                 RemakeMultiFab(m_hybrid_pic_model->current_fp_external[lev][idim],true);
+                RemakeMultiFab(m_hybrid_pic_model->bfield_fp_external[lev][idim], true);
             }
 #ifdef AMREX_USE_EB
             if (WarpX::electromagnetic_solver_id != ElectromagneticSolverAlgo::PSATD) {

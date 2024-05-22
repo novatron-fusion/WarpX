@@ -76,6 +76,23 @@ public:
         const std::string& F_component
     );
 
+    void ReadExternalBFieldFromFileNode (
+        const std::string& read_fields_from_path, 
+        const std::array< std::unique_ptr<amrex::MultiFab>, 3>& edge_lengths,
+        int lev, 
+        amrex::MultiFab* mf,
+        const std::string& F_name, 
+        const std::string& F_component
+    );
+
+    void GetExternalBField (
+        const amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3>>& edge_lengths
+    );
+    void GetExternalBField (
+        const std::array< std::unique_ptr<amrex::MultiFab>, 3>& edge_lengths,
+        int lev
+    );
+
     /**
      * \brief
      * Function to calculate the total current based on Ampere's law while
@@ -207,7 +224,7 @@ public:
     std::string m_By_ext_grid_function = "0.0";
     std::string m_Bz_ext_grid_function = "0.0";
     std::array< std::unique_ptr<amrex::Parser>, 3> m_B_external_parser;
-    std::array< amrex::ParserExecutor<4>, 3> m_B_external;
+    std::array< amrex::ParserExecutor<3>, 3> m_B_external;
 
     // Path of the file where external magnetic 
     // field is stored

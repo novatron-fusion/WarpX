@@ -389,7 +389,6 @@ void FiniteDifferenceSolver::HybridPICSolveE (
         );
 
 #else
-
         HybridPICSolveECartesian <CartesianYeeAlgorithm> (
             Efield, Jfield, Jifield, Jextfield, Bfield, Bextfield, rhofield, Pefield,
             edge_lengths, lev, hybrid_model, include_resistivity_term
@@ -738,6 +737,7 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
 #ifndef AMREX_USE_EB
     amrex::ignore_unused(edge_lengths);
 #endif
+    WARPX_PROFILE("FiniteDifferenceSolver::HybridPICSolveECartesian");
 
     // for the profiler
     amrex::LayoutData<amrex::Real>* cost = WarpX::getCosts(lev);
@@ -843,7 +843,7 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
             );
             enE_nodal(i, j, k, 2) = (
                 (jx_interp - jix_interp - Jextx(i, j, k)) * (By_interp + Bexty(i, j, k))
-                - (jy_interp - jiy_interp - Jexty(i, j, k)) * (Bx_interp + Bextz(i, j, k))
+                - (jy_interp - jiy_interp - Jexty(i, j, k)) * (Bx_interp + Bextx(i, j, k))
             );
         });
 
