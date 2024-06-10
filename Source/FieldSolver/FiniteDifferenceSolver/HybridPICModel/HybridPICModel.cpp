@@ -288,9 +288,9 @@ void HybridPICModel::InitData ()
         
         if (B_ext_grid_s == "read_from_file") {
             amrex::Print() << "read_from_file" << "\n";
-            ReadExternalBFieldFromFileNode(external_fields_path, edge_lengths, lev, bfield_fp_external[lev][0].get(), "B", "x");
-            ReadExternalBFieldFromFileNode(external_fields_path, edge_lengths, lev, bfield_fp_external[lev][1].get(), "B", "y");
-            ReadExternalBFieldFromFileNode(external_fields_path, edge_lengths, lev, bfield_fp_external[lev][2].get(), "B", "z");
+            ReadExternalBFieldFromFile(external_fields_path, edge_lengths, lev, bfield_fp_external[lev][0].get(), "B", "x");
+            ReadExternalBFieldFromFile(external_fields_path, edge_lengths, lev, bfield_fp_external[lev][1].get(), "B", "y");
+            ReadExternalBFieldFromFile(external_fields_path, edge_lengths, lev, bfield_fp_external[lev][2].get(), "B", "z");
             amrex::Print() << "Done" << "\n";
         }
     }
@@ -777,7 +777,6 @@ HybridPICModel::ReadExternalBFieldFromFile (
                      f000, f001, f010, f011, f100, f101, f110, f111,
                      x0, x1, x2));
 #endif
-
             }
 
         ); // End ParallelFor
@@ -799,152 +798,6 @@ HybridPICModel::ReadExternalBFieldFromFile (
     WARPX_ABORT_WITH_MESSAGE("Reading fields from openPMD files is not supported in 1D");
 #elif defined(WARPX_DIM_XZ)
     WARPX_ABORT_WITH_MESSAGE("Reading from openPMD for external fields is not known to work with XZ (see #3828)");
-#elif !defined(WARPX_USE_OPENPMD)
-    WARPX_ABORT_WITH_MESSAGE("OpenPMD field reading requires OpenPMD support to be enabled");
-#endif
-}
-#endif // WARPX_USE_OPENPMD
-
-
-#if defined(WARPX_USE_OPENPMD) && defined(WARPX_DIM_3D)
-void
-HybridPICModel::ReadExternalBFieldFromFileNode (
-       const std::string& read_fields_from_path, 
-       const std::array< std::unique_ptr<amrex::MultiFab>, 3>& edge_lengths,
-       int lev, 
-       amrex::MultiFab* mf,
-       const std::string& F_name, 
-       const std::string& F_component)
-{
-    // Get WarpX domain info
-    auto& warpx = WarpX::GetInstance();
-    amrex::Geometry const& geom = warpx.Geom(lev);
-    const amrex::RealBox& real_box = geom.ProbDomain();
-    const auto dx = geom.CellSizeArray();
-    const amrex::IntVect nodal_flag = mf->ixType().toIntVect();
-
-    // Read external field openPMD data
-    auto series = openPMD::Series(read_fields_from_path, openPMD::Access::READ_ONLY);
-    auto iseries = series.iterations.begin()->second;
-    auto F = iseries.meshes[F_name];
-
-    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(F.getAttribute("dataOrder").get<std::string>() == "C",
-                                     "Reading from files with non-C dataOrder is not implemented");
-
-    auto axisLabels = F.getAttribute("axisLabels").get<std::vector<std::string>>();
-    auto fileGeom = F.getAttribute("geometry").get<std::string>();
-
-    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(fileGeom == "cartesian", "3D can only read from files with cartesian geometry");
-    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(axisLabels[0] == "x" && axisLabels[1] == "y" && axisLabels[2] == "z",
-                                     "3D expects axisLabels {x, y, z}");
-
-    const auto offset = F.gridGlobalOffset();
-    const auto offset0 = static_cast<amrex::Real>(offset[0]);
-    const auto offset1 = static_cast<amrex::Real>(offset[1]);
-    const auto offset2 = static_cast<amrex::Real>(offset[2]);
-
-    const auto d = F.gridSpacing<long double>();
-
-    const auto file_dx = static_cast<amrex::Real>(d[0]);
-    const auto file_dy = static_cast<amrex::Real>(d[1]);
-    const auto file_dz = static_cast<amrex::Real>(d[2]);
-
-    auto FC = F[F_component];
-    const auto extent = FC.getExtent();
-    const auto extent0 = static_cast<int>(extent[0]);
-    const auto extent1 = static_cast<int>(extent[1]);
-    const auto extent2 = static_cast<int>(extent[2]);
-
-    // Determine the chunk data that will be loaded.
-    // Now, the full range of data is loaded.
-    // Loading chunk data can speed up the process.
-    // Thus, `chunk_offset` and `chunk_extent` should be modified accordingly in another PR.
-    const openPMD::Offset chunk_offset = {0,0,0};
-    const openPMD::Extent chunk_extent = {extent[0], extent[1], extent[2]};
-
-    auto FC_chunk_data = FC.loadChunk<double>(chunk_offset,chunk_extent);
-    series.flush();
-    auto *FC_data_host = FC_chunk_data.get();
-
-    // Load data to GPU
-    const size_t total_extent = size_t(extent[0]) * extent[1] * extent[2];
-    amrex::Gpu::DeviceVector<double> FC_data_gpu(total_extent);
-    auto *FC_data = FC_data_gpu.data();
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice, FC_data_host, FC_data_host + total_extent, FC_data);
-
-    // Loop over boxes
-    for (MFIter mfi(*mf, TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box box = mfi.growntilebox();
-        const amrex::Box tb = mfi.tilebox(nodal_flag, mf->nGrowVect());
-        auto const& mffab = mf->array(mfi);
-
-#ifdef AMREX_USE_EB
-        amrex::Array4<amrex::Real> const& lx = edge_lengths[0]->array(mfi);
-        amrex::Array4<amrex::Real> const& ly = edge_lengths[1]->array(mfi);
-        amrex::Array4<amrex::Real> const& lz = edge_lengths[2]->array(mfi);
-#else
-        amrex::ignore_unused(edge_lengths);
-#endif
-
-        // Start ParallelFor
-        amrex::ParallelFor (tb,
-            [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-                // skip if node is covered by an embedded boundary
-#ifdef AMREX_USE_EB
-                if ((lx(i, j, k) <= 0) || (ly(i, j, k) <= 0) || (lz(i, j, k) <= 0)) return;
-#endif
-                // i,j,k denote x,y,z indices in 3D xyz.
-                const amrex::Real fac_x = (1._rt - nodal_flag[0]) * dx[0] * 0.5_rt;
-                const amrex::Real x = i*dx[0] + real_box.lo(0) + fac_x;
-                const amrex::Real fac_y = (1._rt - nodal_flag[1]) * dx[1] * 0.5_rt;
-                const amrex::Real y = j*dx[1] + real_box.lo(1) + fac_y;
-                const amrex::Real fac_z = (1._rt - nodal_flag[2]) * dx[2] * 0.5_rt;
-                const amrex::Real z = k*dx[2] + real_box.lo(2) + fac_z;
-
-                // Get index of the external field array
-                int const ix = std::floor( (x-offset0)/file_dx );
-                int const iy = std::floor( (y-offset1)/file_dy );
-                int const iz = std::floor( (z-offset2)/file_dz );
-
-                // Get coordinates of external grid point
-                amrex::Real const xx0 = offset0 + ix * file_dx;
-                amrex::Real const xx1 = offset1 + iy * file_dy;
-                amrex::Real const xx2 = offset2 + iz * file_dz;
-
-                const amrex::Array4<double> fc_array(FC_data, {0,0,0}, {extent2, extent1, extent0}, 1);
-                const double
-                    f000 = fc_array(iz  , iy  , ix  ),
-                    f001 = fc_array(iz+1, iy  , ix  ),
-                    f010 = fc_array(iz  , iy+1, ix  ),
-                    f011 = fc_array(iz+1, iy+1, ix  ),
-                    f100 = fc_array(iz  , iy  , ix+1),
-                    f101 = fc_array(iz+1, iy  , ix+1),
-                    f110 = fc_array(iz  , iy+1, ix+1),
-                    f111 = fc_array(iz+1, iy+1, ix+1);
-                mffab(i,j,k) = static_cast<amrex::Real>(utils::algorithms::trilinear_interp<double>
-                    (xx0, xx0+file_dx, xx1, xx1+file_dy, xx2, xx2+file_dz,
-                     f000, f001, f010, f011, f100, f101, f110, f111,
-                     x, y, z));
-            }
-
-        ); // End ParallelFor
-
-    } // End loop over boxes.
-
-} // End function HybridPICModel::ReadCurrentExternalFromFile
-#else // WARPX_USE_OPENPMD && WARPX_DIM_3D
-void
-HybridPICModel::ReadExternalBFieldFromFileNode (
-    const std::string& , 
-    const std::array< std::unique_ptr<amrex::MultiFab>, 3>& , 
-    int , 
-    amrex::MultiFab* , 
-    const std::string& , 
-    const std::string& )
-{
-#if !defined(WARPX_DIM_3D)
-    WARPX_ABORT_WITH_MESSAGE("Reading fields from openPMD files is only supported in 3D");
 #elif !defined(WARPX_USE_OPENPMD)
     WARPX_ABORT_WITH_MESSAGE("OpenPMD field reading requires OpenPMD support to be enabled");
 #endif
