@@ -1325,6 +1325,7 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
             pywarpx.my_constants.mangle_expression(self.plasma_resistivity, self.mangle_dict)
         )
         pywarpx.hybridpicmodel.plasma_hyper_resistivity = self.plasma_hyper_resistivity
+        pywarpx.hybridpicmodel.substeps = self.substeps
         
         pywarpx.hybridpicmodel.__setattr__(
             'Jx_external_grid_function(x,y,z,t)',
