@@ -142,6 +142,7 @@ class FiniteDifferenceSolver
           * \param[in] Jifield  vector of ion current density MultiFabs at a given level
           * \param[in] Jextfield  vector of external current density MultiFabs at a given level
           * \param[in] Bfield   vector of magnetic field MultiFabs at a given level
+          * \param[in] Bextfield  vector of external magnetic field MultiFabs at a given level
           * \param[in] rhofield scalar ion charge density Multifab at a given level
           * \param[in] Pefield  scalar electron pressure MultiFab at a given level
           * \param[in] edge_lengths length of edges along embedded boundaries
@@ -154,6 +155,7 @@ class FiniteDifferenceSolver
                       std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Jifield,
                       std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Jextfield,
                       std::array< std::unique_ptr<amrex::MultiFab>, 3> const& Bfield,
+                      std::array< std::unique_ptr<amrex::MultiFab>, 3> const& Bextfield,
                       std::unique_ptr<amrex::MultiFab> const& rhofield,
                       std::unique_ptr<amrex::MultiFab> const& Pefield,
                       std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& edge_lengths,
@@ -344,6 +346,7 @@ class FiniteDifferenceSolver
             std::array< std::unique_ptr<amrex::MultiFab>, 3> const& Jifield,
             std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& Jextfield,
             std::array< std::unique_ptr<amrex::MultiFab>, 3> const& Bfield,
+            std::array< std::unique_ptr<amrex::MultiFab>, 3> const& Bextfield,
             std::unique_ptr<amrex::MultiFab> const& rhofield,
             std::unique_ptr<amrex::MultiFab> const& Pefield,
             std::array< std::unique_ptr<amrex::MultiFab>, 3 > const& edge_lengths,

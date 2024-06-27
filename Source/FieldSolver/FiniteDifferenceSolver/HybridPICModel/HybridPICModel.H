@@ -64,6 +64,37 @@ public:
 
     /**
      * \brief
+     * Function to read the external magnetic field from a file and populate the
+     * external magnetic field multifab. Note: this is a static magnetic field.
+     */
+    void ReadExternalBFieldFromFile (
+        const std::string& read_fields_from_path, 
+        const std::array< std::unique_ptr<amrex::MultiFab>, 3>& edge_lengths,
+        int lev, 
+        amrex::MultiFab* mf,
+        const std::string& F_name, 
+        const std::string& F_component
+    );
+
+    void ReadExternalBFieldFromFileNode (
+        const std::string& read_fields_from_path, 
+        const std::array< std::unique_ptr<amrex::MultiFab>, 3>& edge_lengths,
+        int lev, 
+        amrex::MultiFab* mf,
+        const std::string& F_name, 
+        const std::string& F_component
+    );
+
+    void GetExternalBField (
+        const amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3>>& edge_lengths
+    );
+    void GetExternalBField (
+        const std::array< std::unique_ptr<amrex::MultiFab>, 3>& edge_lengths,
+        int lev
+    );
+
+    /**
+     * \brief
      * Function to calculate the total current based on Ampere's law while
      * neglecting displacement current (J = curl x B). Used in the Ohm's law
      * solver (kinetic-fluid hybrid model).
@@ -188,11 +219,25 @@ public:
     std::array< amrex::ParserExecutor<4>, 3> m_J_external;
     bool m_external_field_has_time_dependence = false;
 
+    /** External magnetic field */
+    std::string m_Bx_ext_grid_function = "0.0";
+    std::string m_By_ext_grid_function = "0.0";
+    std::string m_Bz_ext_grid_function = "0.0";
+    std::array< std::unique_ptr<amrex::Parser>, 3> m_B_external_parser;
+    std::array< amrex::ParserExecutor<3>, 3> m_B_external;
+
+    // Path of the file where external magnetic 
+    // field is stored
+    std::string external_fields_path = "0.0";
+
+    std::string B_ext_grid_s = "0.0";
+
     // Declare multifabs specifically needed for the hybrid-PIC model
     amrex::Vector<            std::unique_ptr<amrex::MultiFab>      > rho_fp_temp;
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > current_fp_temp;
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > current_fp_ampere;
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > current_fp_external;
+    amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > bfield_fp_external;
     amrex::Vector<            std::unique_ptr<amrex::MultiFab>      > electron_pressure_fp;
 
     // Helper functions to retrieve hybrid-PIC multifabs
@@ -206,6 +251,12 @@ public:
     get_pointer_current_fp_external (int lev, int direction) const
     {
         return current_fp_external[lev][direction].get();
+    }
+
+    [[nodiscard]] amrex::MultiFab*
+    get_pointer_bfield_fp_external (int lev, int direction) const
+    {
+        return bfield_fp_external[lev][direction].get();
     }
 
     [[nodiscard]] amrex::MultiFab*

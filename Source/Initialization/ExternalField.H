@@ -62,7 +62,7 @@ struct ExternalFieldParams
     //! User-defined parser to initialize z-component of the electric field on the grid
     std::unique_ptr<amrex::Parser> Ezfield_parser;
 
-     //! Path of the file where external fields are stored
+    //! Path of the file where external fields are stored
     std::string external_fields_path;
 };
 

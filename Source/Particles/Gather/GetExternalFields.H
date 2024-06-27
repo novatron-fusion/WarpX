@@ -21,13 +21,15 @@
 #include <fstream>
 
 #if defined(WARPX_DIM_3D)
-struct ExternalFieldFromFile3DCyl 
+struct ExternalFieldFromFile3DCyl
 {
     const amrex::RealVect dx;
     const amrex::RealVect origin;
     const amrex::Array4<amrex::Real const> arrayr;
+    const amrex::Array4<amrex::Real const> arrayt;
     const amrex::Array4<amrex::Real const> arrayz;
     const amrex::Gpu::DeviceVector<amrex::Real> datar;
+    const amrex::Gpu::DeviceVector<amrex::Real> datat;
     const amrex::Gpu::DeviceVector<amrex::Real> dataz;
     public:
     ExternalFieldFromFile3DCyl(
@@ -35,13 +37,16 @@ struct ExternalFieldFromFile3DCyl
         const amrex::RealVect origin_,
         const amrex::Dim3 shape_,
         amrex::Gpu::DeviceVector<amrex::Real>& datar_,
+        amrex::Gpu::DeviceVector<amrex::Real>& datat_,
         amrex::Gpu::DeviceVector<amrex::Real>& dataz_
         ) :
-        dx(dx_), 
-        origin(origin_), 
+        dx(dx_),
+        origin(origin_),
         arrayr(datar_.data(), {0,0,0}, shape_, 1),
+        arrayt(datat_.data(), {0,0,0}, shape_, 1),
         arrayz(dataz_.data(), {0,0,0}, shape_, 1),
-        datar(std::move(datar_)), 
+        datar(std::move(datar_)),
+        datat(std::move(datat_)),
         dataz(std::move(dataz_))
     {
     }
@@ -53,7 +58,7 @@ struct ExternalFieldFromFile3DCyl
                     f01 = array(0, iz  , ir+1),
                     f10 = array(0, iz+1, ir  ),
                     f11 = array(0, iz+1, ir+1);
-        
+
         return static_cast<amrex::Real>(utils::algorithms::bilinear_interp<double>
                     (ir * dx[0], (ir+1) * dx[0], iz * dx[1], (iz+1) * dx[1],
                      f00, f10, f01, f11,
@@ -73,6 +78,7 @@ struct ExternalFieldFromFile3DCyl
             return amrex::RealVect();
 
         auto Br = interp_(arrayr, ir, iz, rel_r, rel_z);
+        auto Bt = interp_(arrayt, ir, iz, rel_r, rel_z);
         auto Bz = interp_(arrayz, ir, iz, rel_r, rel_z);
 
         amrex::RealVect retvect;
@@ -84,18 +90,18 @@ struct ExternalFieldFromFile3DCyl
             };
         } else {
             retvect = {
-                Br * x / r,
-                Br * y / r,
+                Br * x / r + Bt * y / r,
+                Br * y / r - Bt * x / r,
                 Bz
             };
         }
 
 #ifdef DEBUG_EXTERNAL_FIELD_INTERPOLATION
-        { 
+        {
             std::ofstream myfile;
             myfile.open ("/tmp/ptcls-interpolate-rz.csv", std::ios_base::app);
             myfile << ir << " " << iz << " " << r << " " << z << " " << Br << " " << Bz << std::endl;
-            myfile.close();   
+            myfile.close();
         }
 #endif
 
