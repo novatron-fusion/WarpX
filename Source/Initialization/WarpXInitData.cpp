@@ -1498,6 +1498,85 @@ WarpX::LoadExternalFields (int const lev)
     }
 }
 
+template<typename T> T get(int i, int j, int k, amrex::Array4<T> fc_array, const amrex::Box box, const amrex::RealBox& real_box, 
+amrex::Real offset0, amrex::Real offset1, amrex::Real offset2,
+ amrex::Real file_dx, amrex::Real file_dy, amrex::Real file_dz,
+  amrex::GpuArray<amrex::Real, 3> dx) {
+    // ii is used for 2D RZ mode
+#if defined(WARPX_DIM_RZ)
+    // In 2D RZ, i denoting r can be < 0
+    // but mirrored values should be assigned.
+    // Namely, mffab(i) = FC_data[-i] when i<0.
+    const int ii = (i<0)?(-i):(i);
+#else
+    const int ii = i;
+#endif
+
+    // Physical coordinates of the grid point
+    // 0,1,2 denote x,y,z in 3D xyz.
+    // 0,1 denote r,z in 2D rz.
+    amrex::Real x0, x1;
+    if ( box.type(0)==amrex::IndexType::CellIndex::NODE )
+            { x0 = static_cast<amrex::Real>(real_box.lo(0)) + ii*dx[0]; }
+    else { x0 = static_cast<amrex::Real>(real_box.lo(0)) + ii*dx[0] + 0.5_rt*dx[0]; }
+    if ( box.type(1)==amrex::IndexType::CellIndex::NODE )
+            { x1 = real_box.lo(1) + j*dx[1]; }
+    else { x1 = real_box.lo(1) + j*dx[1] + 0.5_rt*dx[1]; }
+
+#if defined(WARPX_DIM_RZ)
+    // Get index of the external field array
+    int const ir = std::floor( (x0-offset0)/file_dr );
+    int const iz = std::floor( (x1-offset1)/file_dz );
+
+    // Get coordinates of external grid point
+    amrex::Real const xx0 = offset0 + ir * file_dr;
+    amrex::Real const xx1 = offset1 + iz * file_dz;
+
+#elif defined(WARPX_DIM_3D)
+    amrex::Real x2;
+    if ( box.type(2)==amrex::IndexType::CellIndex::NODE )
+            { x2 = real_box.lo(2) + k*dx[2]; }
+    else { x2 = real_box.lo(2) + k*dx[2] + 0.5_rt*dx[2]; }
+
+    // Get index of the external field array
+    int const ix = std::floor( (x0-offset0)/file_dx );
+    int const iy = std::floor( (x1-offset1)/file_dy );
+    int const iz = std::floor( (x2-offset2)/file_dz );
+
+    // Get coordinates of external grid point
+    amrex::Real const xx0 = offset0 + ix * file_dx;
+    amrex::Real const xx1 = offset1 + iy * file_dy;
+    amrex::Real const xx2 = offset2 + iz * file_dz;
+#endif
+
+#if defined(WARPX_DIM_RZ)
+    
+    const T
+        f00 = fc_array(0, iz  , ir  ),
+        f01 = fc_array(0, iz  , ir+1),
+        f10 = fc_array(0, iz+1, ir  ),
+        f11 = fc_array(0, iz+1, ir+1);
+    return = utils::algorithms::bilinear_interp<T>
+        (xx0, xx0+file_dr, xx1, xx1+file_dz,
+            f00, f01, f10, f11,
+            x0, x1);
+#elif defined(WARPX_DIM_3D)
+    const T
+        f000 = fc_array(iz  , iy  , ix  ),
+        f001 = fc_array(iz+1, iy  , ix  ),
+        f010 = fc_array(iz  , iy+1, ix  ),
+        f011 = fc_array(iz+1, iy+1, ix  ),
+        f100 = fc_array(iz  , iy  , ix+1),
+        f101 = fc_array(iz+1, iy  , ix+1),
+        f110 = fc_array(iz  , iy+1, ix+1),
+        f111 = fc_array(iz+1, iy+1, ix+1);
+    return utils::algorithms::trilinear_interp<T>
+        (xx0, xx0+file_dx, xx1, xx1+file_dy, xx2, xx2+file_dz,
+            f000, f001, f010, f011, f100, f101, f110, f111,
+            x0, x1, x2);
+#endif
+}
+
 #if defined(WARPX_USE_OPENPMD) && !defined(WARPX_DIM_1D_Z) && !defined(WARPX_DIM_XZ)
 void
 WarpX::ReadExternalFieldFromFile (
@@ -1571,7 +1650,15 @@ WarpX::ReadExternalFieldFromFile (
     const openPMD::Offset chunk_offset = {0,0,0};
     const openPMD::Extent chunk_extent = {extent[0], extent[1], extent[2]};
 
+#if defined(WARPX_RF_EXTFIELDS)
+    const bool rf = FC.containsAttribute("frequency");
+    if (FC.getDatatype() == openPMD::Datatype::CDOUBLE) {
+        FC.getAttribute("frequency").get<double>();
+    }
+#endif
+
     auto FC_chunk_data = FC.loadChunk<double>(chunk_offset,chunk_extent);
+
     series.flush();
     auto *FC_data_host = FC_chunk_data.get();
 
@@ -1593,82 +1680,22 @@ WarpX::ReadExternalFieldFromFile (
             [=] AMREX_GPU_DEVICE (int i, int j, int k) {
                 // i,j,k denote x,y,z indices in 3D xyz.
                 // i,j denote r,z indices in 2D rz; k is just 0
-
-                // ii is used for 2D RZ mode
-#if defined(WARPX_DIM_RZ)
-                // In 2D RZ, i denoting r can be < 0
-                // but mirrored values should be assigned.
-                // Namely, mffab(i) = FC_data[-i] when i<0.
-                const int ii = (i<0)?(-i):(i);
-#else
-                const int ii = i;
+#if defined(WARPX_RF_EXTFIELDS)
+                if (rf) {
+                    auto val = get<amrex::GpuComplex<double>>(i, j, k);
+                    mffab(i, j, k, 0) = static_cast<amrex::Real>(val.real());
+                    mffab(i, j, k, 1) = static_cast<amrex::Real>(val.imag());
+                } else {
 #endif
-
-                // Physical coordinates of the grid point
-                // 0,1,2 denote x,y,z in 3D xyz.
-                // 0,1 denote r,z in 2D rz.
-                amrex::Real x0, x1;
-                if ( box.type(0)==amrex::IndexType::CellIndex::NODE )
-                     { x0 = static_cast<amrex::Real>(real_box.lo(0)) + ii*dx[0]; }
-                else { x0 = static_cast<amrex::Real>(real_box.lo(0)) + ii*dx[0] + 0.5_rt*dx[0]; }
-                if ( box.type(1)==amrex::IndexType::CellIndex::NODE )
-                     { x1 = real_box.lo(1) + j*dx[1]; }
-                else { x1 = real_box.lo(1) + j*dx[1] + 0.5_rt*dx[1]; }
-
 #if defined(WARPX_DIM_RZ)
-                // Get index of the external field array
-                int const ir = std::floor( (x0-offset0)/file_dr );
-                int const iz = std::floor( (x1-offset1)/file_dz );
-
-                // Get coordinates of external grid point
-                amrex::Real const xx0 = offset0 + ir * file_dr;
-                amrex::Real const xx1 = offset1 + iz * file_dz;
-
+                    const amrex::Array4<double> fc_array(FC_data, {0,0,0}, {extent0, extent2, extent1}, 1);
 #elif defined(WARPX_DIM_3D)
-                amrex::Real x2;
-                if ( box.type(2)==amrex::IndexType::CellIndex::NODE )
-                     { x2 = real_box.lo(2) + k*dx[2]; }
-                else { x2 = real_box.lo(2) + k*dx[2] + 0.5_rt*dx[2]; }
-
-                // Get index of the external field array
-                int const ix = std::floor( (x0-offset0)/file_dx );
-                int const iy = std::floor( (x1-offset1)/file_dy );
-                int const iz = std::floor( (x2-offset2)/file_dz );
-
-                // Get coordinates of external grid point
-                amrex::Real const xx0 = offset0 + ix * file_dx;
-                amrex::Real const xx1 = offset1 + iy * file_dy;
-                amrex::Real const xx2 = offset2 + iz * file_dz;
+                    const amrex::Array4<double> fc_array(FC_data, {0,0,0}, {extent2, extent1, extent0}, 1);
 #endif
-
-#if defined(WARPX_DIM_RZ)
-                const amrex::Array4<double> fc_array(FC_data, {0,0,0}, {extent0, extent2, extent1}, 1);
-                const double
-                    f00 = fc_array(0, iz  , ir  ),
-                    f01 = fc_array(0, iz  , ir+1),
-                    f10 = fc_array(0, iz+1, ir  ),
-                    f11 = fc_array(0, iz+1, ir+1);
-                mffab(i,j,k) = static_cast<amrex::Real>(utils::algorithms::bilinear_interp<double>
-                    (xx0, xx0+file_dr, xx1, xx1+file_dz,
-                     f00, f01, f10, f11,
-                     x0, x1));
-#elif defined(WARPX_DIM_3D)
-                const amrex::Array4<double> fc_array(FC_data, {0,0,0}, {extent2, extent1, extent0}, 1);
-                const double
-                    f000 = fc_array(iz  , iy  , ix  ),
-                    f001 = fc_array(iz+1, iy  , ix  ),
-                    f010 = fc_array(iz  , iy+1, ix  ),
-                    f011 = fc_array(iz+1, iy+1, ix  ),
-                    f100 = fc_array(iz  , iy  , ix+1),
-                    f101 = fc_array(iz+1, iy  , ix+1),
-                    f110 = fc_array(iz  , iy+1, ix+1),
-                    f111 = fc_array(iz+1, iy+1, ix+1);
-                mffab(i,j,k) = static_cast<amrex::Real>(utils::algorithms::trilinear_interp<double>
-                    (xx0, xx0+file_dx, xx1, xx1+file_dy, xx2, xx2+file_dz,
-                     f000, f001, f010, f011, f100, f101, f110, f111,
-                     x0, x1, x2));
+                    mffab(i,j,k) = static_cast<amrex::Real>(get<double>(i, j, k, fc_array, box, real_box, offset0, offset1, offset2, file_dx, file_dy, file_dz, dx));
+#if defined(WARPX_RF_EXTFIELDS)
+                }
 #endif
-
             }
 
         ); // End ParallelFor
