@@ -91,7 +91,8 @@ GetExternalEBField::GetExternalEBField (const WarpXParIter& a_pti, long a_offset
     {
         if (mypc.m_E_ext_particle_s == "read_from_file") m_Etype = ReadFromFile;
         if (mypc.m_B_ext_particle_s == "read_from_file") m_Btype = ReadFromFile;
-        Bfield_file_external_particle_cyl = mypc.external_field_from_file_B;
+        Bfield_file_external_particle = mypc.m_B_ext_particle_field_from_file;
+        Efield_file_external_particle = mypc.m_E_ext_particle_field_from_file;
     }
 #endif
 

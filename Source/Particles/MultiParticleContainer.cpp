@@ -261,7 +261,6 @@ MultiParticleContainer::ReadParameters ()
             amrex::Gpu::synchronize();
         }
 
-#if defined(WARPX_DIM_3D)
         if (m_E_ext_particle_s == "read_from_file" ||
             m_B_ext_particle_s == "read_from_file")
         {
@@ -310,12 +309,14 @@ MultiParticleContainer::ReadParameters ()
                     FCr_data_gpu, FCt_data_gpu, FCz_data_gpu
                 );
     #ifdef AMREX_USE_GPU
-                external_field_from_file_B = static_cast<ExternalFieldFromFile3DCyl*>
+                m_B_ext_particle_field_from_file = static_cast<ExternalFieldFromFile3DCyl*>
                     (amrex::The_Arena()->alloc(sizeof(ExternalFieldFromFile3DCyl)));
-                amrex::Gpu::htod_memcpy_async(external_field_from_file_B, efff, sizeof(ExternalFieldFromFile3DCyl));
+                amrex::Gpu::htod_memcpy_async(m_B_ext_particle_field_from_file, efff, sizeof(ExternalFieldFromFile3DCyl));
     #else
-                external_field_from_file_B = efff;
+                m_B_ext_particle_field_from_file = efff;
     #endif
+            } else if(fileGeom == "cartesian") {
+
             } else {
                 WARPX_ALWAYS_ASSERT_WITH_MESSAGE(false, "3D can only read external fields from files with thetaMode geometry");
             }
