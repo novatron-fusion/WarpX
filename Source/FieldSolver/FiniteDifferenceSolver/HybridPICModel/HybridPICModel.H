@@ -64,6 +64,33 @@ public:
 
     /**
      * \brief
+     * Function to read the electron temperature field from a file and populate the
+     * electron temperature field multifab. Note: this is a static electron temperature field.
+     */
+    void ReadElecTempFieldFromFile (
+        const std::string& read_fields_from_path, 
+        const std::array< std::unique_ptr<amrex::MultiFab>, 3>& edge_lengths,
+        int lev, 
+        amrex::MultiFab* mf,
+        const std::string& F_name, 
+    );
+
+    /**
+     * \brief
+     * Function to evaluate the electron temperature expressions and populate the
+     * electron termperature multifab.
+     */
+    void GetElecTempField (
+        amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3>> const& edge_lengths
+    );
+    void GetElecTempField (
+        std::array< std::unique_ptr<amrex::MultiFab>, 3> const& edge_lengths,
+        int lev
+    );
+
+
+    /**
+     * \brief
      * Function to read the external magnetic field from a file and populate the
      * external magnetic field multifab. Note: this is a static magnetic field.
      */
@@ -188,12 +215,17 @@ public:
         std::unique_ptr<amrex::MultiFab> const& Pe_field,
         amrex::MultiFab* const& rho_field ) const;
 
+    void FillElectronPressureMF (
+        std::unique_ptr<amrex::MultiFab> const& Pe_field,
+        amrex::MultiFab* const& rho_field,
+        amrex::MultiFab* const& elec_temp_field ) const;
+
     // Declare variables to hold hybrid-PIC model parameters
     /** Number of substeps to take when evolving B */
     int m_substeps = 10;
 
     /** Electron temperature in eV */
-    amrex::Real m_elec_temp;
+    amrex::Real m_Te;
     /** Reference electron density */
     amrex::Real m_n0_ref = 1.0;
     /** Electron pressure scaling exponent */
@@ -207,6 +239,17 @@ public:
     std::unique_ptr<amrex::Parser> m_resistivity_parser;
     amrex::ParserExecutor<2> m_eta;
     bool m_resistivity_has_J_dependence = false;
+
+    /** Electron temperature in eV */
+    std::string m_elec_temp_expression = "0.0";
+    std::unique_ptr<amrex::Parser> m_elec_temp_parser;
+    amrex::ParserExecutor<2> m_elec_temp;
+
+    // Path of the file where elec temp
+    // field is stored
+    std::string elec_temp_path = "0.0";
+
+    std::string elec_temp_grid_s = "0.0";
 
     /** Plasma hyper-resisitivity */
     amrex::Real m_eta_h = 0.0;
@@ -233,6 +276,7 @@ public:
     std::string B_ext_grid_s = "0.0";
 
     // Declare multifabs specifically needed for the hybrid-PIC model
+    amrex::Vector<            std::unique_ptr<amrex::MultiFab>      > elec_temp_fp;
     amrex::Vector<            std::unique_ptr<amrex::MultiFab>      > rho_fp_temp;
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > current_fp_temp;
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > current_fp_ampere;

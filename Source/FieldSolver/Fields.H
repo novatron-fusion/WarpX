@@ -18,6 +18,7 @@ namespace warpx::fields
         current_fp,
         current_fp_nodal,
         rho_fp,
+        elec_temp_fp,
         F_fp,
         G_fp,
         phi_fp,

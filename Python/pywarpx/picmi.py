@@ -1264,7 +1264,8 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
     Jx/y/z_external_function: str
         Function of space and time specifying external (non-plasma) currents.
     """
-    def __init__(self, grid, Te=None, n0=None, gamma=None,
+    def __init__(self, grid, elec_temp_init_style=None,
+                 elec_temp_function=None, Te=None, n0=None, gamma=None,
                  n_floor=None, plasma_resistivity=None,
                  plasma_hyper_resistivity=None, substeps=None,
                  Jx_external_function=None, Jy_external_function=None,
@@ -1275,6 +1276,9 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
                  read_fields_from_path=None, **kw):
         self.grid = grid
         self.method = "hybrid"
+
+        self.elec_temp_init_style = elec_temp_init_style
+        self.elec_temp_function = elec_temp_function
 
         self.Te = Te
         self.n0 = n0
@@ -1316,7 +1320,14 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
 
         pywarpx.algo.maxwell_solver = self.method
 
-        pywarpx.hybridpicmodel.elec_temp = self.Te
+        pywarpx.hybridpicmodel.elec_temp_init_style = self.elec_temp_init_style
+        pywarpx.hybridpicmodel.__setattr__(
+            'elec_temp_grid_function(x,y,z)',
+            pywarpx.my_constants.mangle_expression(self.elec_temp_function, self.mangle_dict)
+        )
+
+        if self.elec_temp_init_style == "constant":
+            pywarpx.hybridpicmodel.m_Te = self.Te
         pywarpx.hybridpicmodel.n0_ref = self.n0
         pywarpx.hybridpicmodel.gamma = self.gamma
         pywarpx.hybridpicmodel.n_floor = self.n_floor
