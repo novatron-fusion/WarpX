@@ -777,7 +777,8 @@ FullDiagnostics::PrepareFieldDataForOutput ()
     auto & warpx = WarpX::GetInstance();
     warpx.FillBoundaryE(warpx.getngEB());
     warpx.FillBoundaryB(warpx.getngEB());
-    warpx.UpdateAuxilaryData();
+    amrex::Real cur_time = 0.0; // TODO rho: get the time here
+    warpx.UpdateAuxilaryData(cur_time);
     warpx.FillBoundaryAux(warpx.getngUpdateAux());
 
     // Update the RealBox used for the geometry filter in particle diags

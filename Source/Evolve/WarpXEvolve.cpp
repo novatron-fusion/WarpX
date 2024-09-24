@@ -97,7 +97,7 @@ WarpX::Evolve (int numsteps)
 
         if (evolve_scheme == EvolveScheme::Explicit)
         {
-            ExplicitFillBoundaryEBUpdateAux();
+            ExplicitFillBoundaryEBUpdateAux(cur_time);
         }
 
         // If needed, deposit the initial ion charge and current densities that
@@ -184,7 +184,7 @@ WarpX::Evolve (int numsteps)
                     FillBoundaryE_avg(guard_cells.ng_FieldGather);
                     FillBoundaryB_avg(guard_cells.ng_FieldGather);
                 }
-                UpdateAuxilaryData();
+                UpdateAuxilaryData(cur_time);
                 FillBoundaryAux(guard_cells.ng_UpdateAux);
                 for (int lev = 0; lev <= finest_level; ++lev) {
                     mypc->PushP(lev, 0.5_rt*dt[lev],
@@ -442,7 +442,7 @@ void WarpX::checkEarlyUnusedParams ()
     amrex::Print() << ablastr::warn_manager::GetWMInstance().PrintGlobalWarnings("FIRST STEP");
 }
 
-void WarpX::ExplicitFillBoundaryEBUpdateAux ()
+void WarpX::ExplicitFillBoundaryEBUpdateAux (amrex::Real cur_time)
 {
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(evolve_scheme == EvolveScheme::Explicit,
         "Cannot call WarpX::ExplicitFillBoundaryEBUpdateAux wihtout Explicit evolve scheme set!");
@@ -456,7 +456,7 @@ void WarpX::ExplicitFillBoundaryEBUpdateAux ()
         FillBoundaryE(guard_cells.ng_alloc_EB);
         FillBoundaryB(guard_cells.ng_alloc_EB);
 
-        UpdateAuxilaryData();
+        UpdateAuxilaryData(cur_time);
         FillBoundaryAux(guard_cells.ng_UpdateAux);
         // on first step, push p by -0.5*dt
         for (int lev = 0; lev <= finest_level; ++lev)
@@ -487,7 +487,7 @@ void WarpX::ExplicitFillBoundaryEBUpdateAux ()
                 FillBoundaryAux(guard_cells.ng_UpdateAux);
             }
         }
-        UpdateAuxilaryData();
+        UpdateAuxilaryData(cur_time);
         FillBoundaryAux(guard_cells.ng_UpdateAux);
     }
 }
@@ -865,7 +865,7 @@ WarpX::OneStep_sub1 (Real cur_time)
     // TODO Remove call to FillBoundaryAux before UpdateAuxilaryData?
     FillBoundaryAux(guard_cells.ng_UpdateAux);
     // iii) Get auxiliary fields on the fine grid, at dt[fine_lev]
-    UpdateAuxilaryData();
+    UpdateAuxilaryData(cur_time);
     FillBoundaryAux(guard_cells.ng_UpdateAux);
 
     // iv) Push particles and fields on the fine patch (second fine step)

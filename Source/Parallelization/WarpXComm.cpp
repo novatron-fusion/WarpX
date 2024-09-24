@@ -51,7 +51,7 @@
 using namespace amrex;
 
 void
-WarpX::UpdateAuxilaryData ()
+WarpX::UpdateAuxilaryData (amrex::Real cur_time)
 {
     WARPX_PROFILE("WarpX::UpdateAuxilaryData()");
 
@@ -64,17 +64,16 @@ WarpX::UpdateAuxilaryData ()
     // When loading particle fields from file: add the external fields:
     for (int lev = 0; lev <= finest_level; ++lev) {
         if (mypc->m_E_ext_particle_s == "read_from_file") {
-            amrex::MultiFab::Add(*Efield_aux[lev][0], *E_external_particle_field[lev][0], 0, 0, E_external_particle_field[lev][0]->nComp(), guard_cells.ng_FieldGather);
-            amrex::MultiFab::Add(*Efield_aux[lev][1], *E_external_particle_field[lev][1], 0, 0, E_external_particle_field[lev][1]->nComp(), guard_cells.ng_FieldGather);
-            amrex::MultiFab::Add(*Efield_aux[lev][2], *E_external_particle_field[lev][2], 0, 0, E_external_particle_field[lev][2]->nComp(), guard_cells.ng_FieldGather);
+            for (const auto field : E_external_particle_fields[lev]) {
+                field->Add(Efield_aux[lev], cur_time, lev, guard_cells.ng_FieldGather);
+            }
         }
         if (mypc->m_B_ext_particle_s == "read_from_file") {
-            amrex::MultiFab::Add(*Bfield_aux[lev][0], *B_external_particle_field[lev][0], 0, 0, B_external_particle_field[lev][0]->nComp(), guard_cells.ng_FieldGather);
-            amrex::MultiFab::Add(*Bfield_aux[lev][1], *B_external_particle_field[lev][1], 0, 0, B_external_particle_field[lev][0]->nComp(), guard_cells.ng_FieldGather);
-            amrex::MultiFab::Add(*Bfield_aux[lev][2], *B_external_particle_field[lev][2], 0, 0, B_external_particle_field[lev][0]->nComp(), guard_cells.ng_FieldGather);
+            for (const auto field : E_external_particle_fields[lev]) {
+                field->Add(Efield_aux[lev], cur_time, lev, guard_cells.ng_FieldGather);
+            }
         }
     }
-
 }
 
 void

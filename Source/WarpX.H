@@ -45,6 +45,7 @@
 #include "FieldSolver/ImplicitSolvers/WarpXSolverVec.H"
 #include "Filter/BilinearFilter.H"
 #include "Parallelization/GuardCellManager.H"
+#include "Utils/Algorithms/LinearInterpolation.H"
 #include "Utils/Parser/IntervalsParser.H"
 #include "Utils/WarpXAlgorithmSelection.H"
 #include "Utils/export.H"
@@ -54,13 +55,17 @@
 #include <AMReX.H>
 #include <AMReX_AmrCore.H>
 #include <AMReX_Array.H>
+#include <AMReX_BoxArray.H>
 #include <AMReX_Config.H>
+#include <AMReX_DistributionMapping.H>
 #ifdef AMREX_USE_EB
 #   include <AMReX_EBFabFactory.H>
 #endif
 #include <AMReX_GpuContainers.H>
 #include <AMReX_IntVect.H>
 #include <AMReX_LayoutData.H>
+#include <AMReX_MFIter.H>
+#include <AMReX_MultiFab.H>
 #include <AMReX_Parser.H>
 #include <AMReX_REAL.H>
 #include <AMReX_RealBox.H>
@@ -79,6 +84,39 @@
 #include <optional>
 #include <string>
 #include <vector>
+
+class ExternalFieldFromFile {
+    virtual void Add(amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > aux, amrex::Real cur_time) = 0;
+};
+
+
+class ExternalFieldFromFileStatic {
+    std::array< std::unique_ptr<amrex::MultiFab>, 3 > external_particle_field;
+
+    public:
+    ExternalFieldFromFileStatic() {
+        // Read the file and store the data in external_particle_field
+
+    }
+
+    virtual void Add(std::array< std::unique_ptr<amrex::MultiFab>, 3 > aux, amrex::Real cur_time, int lev, amrex::IntVect ng_FieldGather) const {
+        amrex::MultiFab::Add(*aux[0], *external_particle_field[0], 0, 0, external_particle_field[0]->nComp(), ng_FieldGather);
+        amrex::MultiFab::Add(*aux[1], *external_particle_field[1], 0, 0, external_particle_field[1]->nComp(), ng_FieldGather);
+        amrex::MultiFab::Add(*aux[2], *external_particle_field[2], 0, 0, external_particle_field[2]->nComp(), ng_FieldGather);
+    }
+};
+#if 0
+class ExternalFieldFromFileRF {
+    amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > external_particle_field;
+
+    public:
+    ExternalFieldFromFile3D(...) {
+
+    }
+    virtual void Add(amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > aux, amrex::Real cur_time) = 0;
+};
+#endif
+
 
 class WARPX_EXPORT WarpX
     : public amrex::AmrCore
@@ -834,7 +872,7 @@ public:
 
     // This function does aux(lev) = fp(lev) + I(aux(lev-1)-cp(lev)).
     // Caller must make sure fp and cp have ghost cells filled.
-    void UpdateAuxilaryData ();
+    void UpdateAuxilaryData (amrex::Real cur_time);
     void UpdateAuxilaryDataStagToNodal ();
     void UpdateAuxilaryDataSameType ();
 
@@ -913,6 +951,8 @@ public:
     [[nodiscard]] int getdo_moving_window() const {return do_moving_window;}
     [[nodiscard]] amrex::Real getmoving_window_x() const {return moving_window_x;}
     [[nodiscard]] bool getis_synchronized() const {return is_synchronized;}
+    [[nodiscard]] amrex::IndexType get_aux_b_ixtype(int lev, int coord) const {return Bfield_aux[lev][coord]->ixType();}
+    [[nodiscard]] amrex::IndexType get_aux_e_ixtype(int lev, int coord) const {return Efield_aux[lev][coord]->ixType();}
 
     [[nodiscard]] int maxStep () const {return max_step;}
     void updateMaxStep (const int new_max_step) {max_step = new_max_step;}
@@ -1527,8 +1567,9 @@ private:
     // Same as Bfield_fp/Efield_fp for reading external field data
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > Efield_fp_external;
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > Bfield_fp_external;
-    amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > E_external_particle_field;
-    amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > B_external_particle_field;
+
+    amrex::Vector<amrex::Vector<std::unique_ptr<ExternalFieldFromFile> > > E_external_particle_fields;
+    amrex::Vector<amrex::Vector<std::unique_ptr<ExternalFieldFromFile> > > B_external_particle_fields;
 
     //! EB: Lengths of the mesh edges
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > m_edge_lengths;
@@ -1802,7 +1843,7 @@ private:
      * At the beginning, we have B^{n} and E^{n}.
      * Particles have p^{n} and x^{n}.
      */
-    void ExplicitFillBoundaryEBUpdateAux ();
+    void ExplicitFillBoundaryEBUpdateAux (amrex::Real cur_time);
 
     void PushPSATD ();
 
@@ -1980,6 +2021,220 @@ private:
     // implicit solver object
     std::unique_ptr<ImplicitSolver> m_implicit_solver;
 
+};
+
+class ExternalFieldParser {
+    const amrex::BoxArray m_nba;
+    const amrex::DistributionMapping m_dm;
+    const amrex::IntVect m_ngEB;
+    const int m_ncomp;
+    const int m_lev;
+    const amrex::RealBox& m_real_box;
+    const std::array<amrex::Real, 3> m_dx = WarpX::CellSize(m_lev);
+
+public:
+    ExternalFieldParser(const amrex::BoxArray &nba, const amrex::DistributionMapping &dm, const amrex::IntVect &ngEB, int ncomp, int lev, const amrex::RealBox domain) 
+        : m_nba(nba), m_dm(dm), m_ngEB(ngEB), m_ncomp(ncomp), m_lev(lev), m_real_box(domain) {
+        }
+
+    void ParseFile(const std::string &read_fields_from_path, const std::string &F_name) const
+    {
+        using namespace amrex::literals;
+        
+        const int ncomps = 1;
+
+        // Read external field openPMD data
+        auto series = openPMD::Series(read_fields_from_path, openPMD::Access::READ_ONLY);
+        auto iseries = series.iterations.begin()->second;
+        auto F = iseries.meshes[F_name];
+
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(F.getAttribute("dataOrder").get<std::string>() == "C",
+                                        "Reading from files with non-C dataOrder is not implemented");
+
+        auto axisLabels = F.getAttribute("axisLabels").get<std::vector<std::string>>();
+        auto fileGeom = F.getAttribute("geometry").get<std::string>();
+
+        #if defined(WARPX_DIM_3D)
+            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(fileGeom == "cartesian", "3D can only read from files with cartesian geometry");
+            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(axisLabels[0] == "x" && axisLabels[1] == "y" && axisLabels[2] == "z",
+                                            "3D expects axisLabels {x, y, z}");
+        #elif defined(WARPX_DIM_XZ)
+            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(fileGeom == "cartesian", "XZ can only read from files with cartesian geometry");
+            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(axisLabels[0] == "x" && axisLabels[1] == "z",
+                                            "XZ expects axisLabels {x, z}");
+        #elif defined(WARPX_DIM_1D_Z)
+            WARPX_ABORT_WITH_MESSAGE(
+                "Reading from openPMD for external fields is not known to work with 1D3V (see #3830)");
+            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(fileGeom == "cartesian", "1D3V can only read from files with cartesian geometry");
+            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(axisLabels[0] == "z");
+        #elif defined(WARPX_DIM_RZ)
+            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(fileGeom == "thetaMode", "RZ can only read from files with 'thetaMode'  geometry");
+            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(axisLabels[0] == "r" && axisLabels[1] == "z",
+                                            "RZ expects axisLabels {r, z}");
+        #endif
+
+        // TODO: Detect if this is a static field or an RF complex field
+
+        std::unique_ptr<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > external_particle_field = std::make_unique<std::array< std::unique_ptr<amrex::MultiFab>, 3 >>();
+
+        int i = 0;
+        for(int component_i = 0; component_i < 3; component_i++) {
+            const std::string F_component(1, "xyz"[component_i]);
+            std::string fieldname;
+            
+            fieldname.append(F_name).append("_ext_particle_field[").append(std::to_string(m_lev)).append("][").append(std::to_string(i)).append("][").append(F_component).append("]");
+            amrex::IndexType ixtype;
+            if(F_name == "B")
+                ixtype = WarpX::GetInstance().get_aux_b_ixtype(m_lev, component_i);
+            else if(F_name == "E")
+                ixtype = WarpX::GetInstance().get_aux_e_ixtype(m_lev, component_i);
+            else
+                throw std::runtime_error("Unknown field name");
+            WarpX::GetInstance().AllocInitMultiFab((*external_particle_field)[component_i], amrex::convert(m_nba, ixtype), m_dm, m_ncomp, m_ngEB, m_lev, fieldname, 0.0_rt);
+            ParseComponent(F, F_component, series, (*external_particle_field)[component_i].get());
+        }
+    }
+
+    void ParseComponent(openPMD::Container<openPMD::Mesh>::mapped_type &F, const std::string &F_component, openPMD::Series &series, amrex::MultiFab *mf) const {
+        using namespace amrex::literals;
+
+        auto FC = F[F_component];
+        const auto extent = FC.getExtent();
+        const auto extent0 = static_cast<int>(extent[0]);
+        const auto extent1 = static_cast<int>(extent[1]);
+        const auto extent2 = static_cast<int>(extent[2]);
+
+        const auto offset = F.gridGlobalOffset();
+        const auto offset0 = static_cast<amrex::Real>(offset[0]);
+        const auto offset1 = static_cast<amrex::Real>(offset[1]);
+    #if defined(WARPX_DIM_3D)
+        const auto offset2 = static_cast<amrex::Real>(offset[2]);
+    #endif
+
+        const auto d = F.gridSpacing<long double>();
+
+        #if defined(WARPX_DIM_RZ)
+            const auto file_dr = static_cast<amrex::Real>(d[0]);
+            const auto file_dz = static_cast<amrex::Real>(d[1]);
+        #elif defined(WARPX_DIM_3D)
+            const auto file_dx = static_cast<amrex::Real>(d[0]);
+            const auto file_dy = static_cast<amrex::Real>(d[1]);
+            const auto file_dz = static_cast<amrex::Real>(d[2]);
+        #endif
+
+        // Determine the chunk data that will be loaded.
+        // Now, the full range of data is loaded.
+        // Loading chunk data can speed up the process.
+        // Thus, `chunk_offset` and `chunk_extent` should be modified accordingly in another PR.
+        const openPMD::Offset chunk_offset = {0,0,0};
+        const openPMD::Extent chunk_extent = {extent[0], extent[1], extent[2]};
+
+        auto FC_chunk_data = FC.loadChunk<double>(chunk_offset,chunk_extent);
+        series.flush();
+        auto *FC_data_host = FC_chunk_data.get();
+
+        // Load data to GPU
+        const size_t total_extent = size_t(extent[0]) * extent[1] * extent[2];
+        amrex::Gpu::DeviceVector<double> FC_data_gpu(total_extent);
+        auto *FC_data = FC_data_gpu.data();
+        amrex::Gpu::copy(amrex::Gpu::hostToDevice, FC_data_host, FC_data_host + total_extent, FC_data);
+
+        // Loop over boxes
+        for (amrex::MFIter mfi(*mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::IntVect nodal_flag = mf->ixType().toIntVect();
+            const amrex::Box box = mfi.growntilebox();
+            const amrex::Box tb = mfi.tilebox(nodal_flag, mf->nGrowVect());
+            auto const& mffab = mf->array(mfi);
+
+            // Start ParallelFor
+            amrex::ParallelFor (tb,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                    // i,j,k denote x,y,z indices in 3D xyz.
+                    // i,j denote r,z indices in 2D rz; k is just 0
+
+                    // ii is used for 2D RZ mode
+    #if defined(WARPX_DIM_RZ)
+                    // In 2D RZ, i denoting r can be < 0
+                    // but mirrored values should be assigned.
+                    // Namely, mffab(i) = FC_data[-i] when i<0.
+                    const int ii = (i<0)?(-i):(i);
+    #else
+                    const int ii = i;
+    #endif
+
+                    // Physical coordinates of the grid point
+                    // 0,1,2 denote x,y,z in 3D xyz.
+                    // 0,1 denote r,z in 2D rz.
+                    amrex::Real x0, x1;
+                    if ( box.type(0)==amrex::IndexType::CellIndex::NODE )
+                        { x0 = static_cast<amrex::Real>(m_real_box.lo(0)) + ii*m_dx[0]; }
+                    else { x0 = static_cast<amrex::Real>(m_real_box.lo(0)) + ii*m_dx[0] + 0.5_rt*m_dx[0]; }
+                    if ( box.type(1)==amrex::IndexType::CellIndex::NODE )
+                        { x1 = m_real_box.lo(1) + j*m_dx[1]; }
+                    else { x1 = m_real_box.lo(1) + j*m_dx[1] + 0.5_rt*m_dx[1]; }
+
+    #if defined(WARPX_DIM_RZ)
+                    // Get index of the external field array
+                    int const ir = std::floor( (x0-offset0)/file_dr );
+                    int const iz = std::floor( (x1-offset1)/file_dz );
+
+                    // Get coordinates of external grid point
+                    amrex::Real const xx0 = offset0 + ir * file_dr;
+                    amrex::Real const xx1 = offset1 + iz * file_dz;
+
+    #elif defined(WARPX_DIM_3D)
+                    amrex::Real x2;
+                    if ( box.type(2)==amrex::IndexType::CellIndex::NODE )
+                        { x2 = m_real_box.lo(2) + k*m_dx[2]; }
+                    else { x2 = m_real_box.lo(2) + k*m_dx[2] + 0.5_rt*m_dx[2]; }
+
+                    // Get index of the external field array
+                    int const ix = std::floor( (x0-offset0)/file_dx );
+                    int const iy = std::floor( (x1-offset1)/file_dy);
+                    int const iz = std::floor( (x2-offset2)/file_dz );
+
+                    // Get coordinates of external grid point
+                    amrex::Real const xx0 = offset0 + ix * file_dx;
+                    amrex::Real const xx1 = offset1 + iy * file_dy;
+                    amrex::Real const xx2 = offset2 + iz * file_dz;
+    #endif
+
+    #if defined(WARPX_DIM_RZ)
+                    const amrex::Array4<double> fc_array(FC_data, {0,0,0}, {extent0, extent2, extent1}, 1);
+                    const double
+                        f00 = fc_array(0, iz  , ir  ),
+                        f01 = fc_array(0, iz  , ir+1),
+                        f10 = fc_array(0, iz+1, ir  ),
+                        f11 = fc_array(0, iz+1, ir+1);
+                    mffab(i,j,k) = static_cast<amrex::Real>(utils::algorithms::bilinear_interp<double>
+                        (xx0, xx0+file_dr, xx1, xx1+file_dz,
+                        f00, f01, f10, f11,
+                        x0, x1));
+    #elif defined(WARPX_DIM_3D)
+                    const amrex::Array4<double> fc_array(FC_data, {0,0,0}, {extent2, extent1, extent0}, 1);
+                    const double
+                        f000 = fc_array(iz  , iy  , ix  ),
+                        f001 = fc_array(iz+1, iy  , ix  ),
+                        f010 = fc_array(iz  , iy+1, ix  ),
+                        f011 = fc_array(iz+1, iy+1, ix  ),
+                        f100 = fc_array(iz  , iy  , ix+1),
+                        f101 = fc_array(iz+1, iy  , ix+1),
+                        f110 = fc_array(iz  , iy+1, ix+1),
+                        f111 = fc_array(iz+1, iy+1, ix+1);
+                    mffab(i,j,k) = static_cast<amrex::Real>(utils::algorithms::trilinear_interp<double>
+                        (xx0, xx0+file_dx, xx1, xx1+file_dy, xx2, xx2+file_dz,
+                        f000, f001, f010, f011, f100, f101, f110, f111,
+                        x0, x1, x2));
+    #endif
+
+                }
+
+            ); // End ParallelFor
+
+        } // End loop over boxes.
+
+    }
 };
 
 #endif
