@@ -2474,7 +2474,7 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
                 m_fields.alias_init(FieldType::Bfield_aux, FieldType::Bfield_fp, Direction{1}, lev, 0.0_rt);
                 m_fields.alias_init(FieldType::Bfield_aux, FieldType::Bfield_fp, Direction{2}, lev, 0.0_rt);
             }
-            if (mypc->m_E_ext_particle_s == "read_from_file") {
+            if (mypc->m_E_ext_particle_s == "read_from_file" || mypc->m_E_ext_rf_particle_s == "read_from_file") {
                 m_fields.alloc_init(FieldType::Efield_aux, Direction{0}, lev, amrex::convert(ba, Ex_nodal_flag), dm, ncomps, ngEB, 0.0_rt);
                 m_fields.alloc_init(FieldType::Efield_aux, Direction{1}, lev, amrex::convert(ba, Ey_nodal_flag), dm, ncomps, ngEB, 0.0_rt);
                 m_fields.alloc_init(FieldType::Efield_aux, Direction{2}, lev, amrex::convert(ba, Ez_nodal_flag), dm, ncomps, ngEB, 0.0_rt);
@@ -2543,6 +2543,26 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
         m_fields.alloc_init(FieldType::E_external_particle_field, Direction{1}, lev, amrex::convert(ba, Efield_aux_levl_1->ixType()),
             dm, ncomps, ngEB, 0.0_rt);
         m_fields.alloc_init(FieldType::E_external_particle_field, Direction{2}, lev, amrex::convert(ba, Efield_aux_levl_2->ixType()),
+            dm, ncomps, ngEB, 0.0_rt);
+    }
+    if (mypc->m_E_ext_rf_particle_s == "read_from_file") {
+        //  These fields will be added to the fields that the particles see, and need to match the index type
+        auto *Efield_aux_levl_0 = m_fields.get(FieldType::Efield_aux, Direction{0}, lev);
+        auto *Efield_aux_levl_1 = m_fields.get(FieldType::Efield_aux, Direction{1}, lev);
+        auto *Efield_aux_levl_2 = m_fields.get(FieldType::Efield_aux, Direction{2}, lev);
+
+        // Same as Efield_fp for reading external field data
+        m_fields.alloc_init(FieldType::E_external_particle_field_rf_real, Direction{0}, lev, amrex::convert(ba, Efield_aux_levl_0->ixType()), 
+            dm, ncomps, ngEB, 0.0_rt);
+        m_fields.alloc_init(FieldType::E_external_particle_field_rf_real, Direction{1}, lev, amrex::convert(ba, Efield_aux_levl_1->ixType()), 
+            dm, ncomps, ngEB, 0.0_rt);
+        m_fields.alloc_init(FieldType::E_external_particle_field_rf_real, Direction{2}, lev, amrex::convert(ba, Efield_aux_levl_2->ixType()), 
+            dm, ncomps, ngEB, 0.0_rt);
+        m_fields.alloc_init(FieldType::E_external_particle_field_rf_imag, Direction{0}, lev, amrex::convert(ba, Efield_aux_levl_0->ixType()), 
+            dm, ncomps, ngEB, 0.0_rt);
+        m_fields.alloc_init(FieldType::E_external_particle_field_rf_imag, Direction{1}, lev, amrex::convert(ba, Efield_aux_levl_1->ixType()), 
+            dm, ncomps, ngEB, 0.0_rt);
+        m_fields.alloc_init(FieldType::E_external_particle_field_rf_imag, Direction{2}, lev, amrex::convert(ba, Efield_aux_levl_2->ixType()), 
             dm, ncomps, ngEB, 0.0_rt);
     }
 

@@ -783,7 +783,8 @@ FullDiagnostics::PrepareFieldDataForOutput ()
     auto & warpx = WarpX::GetInstance();
     warpx.FillBoundaryE(warpx.getngEB());
     warpx.FillBoundaryB(warpx.getngEB());
-    warpx.UpdateAuxilaryData();
+    // TODO rho: FIXME This will write fields with the RF component from t=0!
+    warpx.UpdateAuxilaryData(0);
     warpx.FillBoundaryAux(warpx.getngUpdateAux());
 
     // Update the RealBox used for the geometry filter in particle diags

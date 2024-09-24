@@ -75,10 +75,12 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <complex>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #ifdef WARPX_USE_OPENPMD
 #   include <openPMD/openPMD.hpp>
@@ -1399,13 +1401,13 @@ WarpX::LoadExternalFields (int const lev)
 #if defined(WARPX_DIM_RZ)
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(n_rz_azimuthal_modes == 1,
                                          "External field reading is not implemented for more than one RZ mode (see #3829)");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external,Direction{0},lev), "B", "r");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external,Direction{1},lev), "B", "t");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external,Direction{2},lev), "B", "z");
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external,Direction{0},lev), "B", "r", FieldComponentType::Full);
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external,Direction{1},lev), "B", "t", FieldComponentType::Full);
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external,Direction{2},lev), "B", "z", FieldComponentType::Full);
 #else
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external, Direction{0}, lev), "B", "x");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external, Direction{1}, lev), "B", "y");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external, Direction{2}, lev), "B", "z");
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external, Direction{0}, lev), "B", "x", FieldComponentType::Full);
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external, Direction{1}, lev), "B", "y", FieldComponentType::Full);
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Bfield_fp_external, Direction{2}, lev), "B", "z", FieldComponentType::Full);
 #endif
     }
 
@@ -1424,13 +1426,13 @@ WarpX::LoadExternalFields (int const lev)
 #if defined(WARPX_DIM_RZ)
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(n_rz_azimuthal_modes == 1,
                                          "External field reading is not implemented for more than one RZ mode (see #3829)");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external,Direction{0},lev), "E", "r");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external,Direction{1},lev), "E", "t");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external,Direction{2},lev), "E", "z");
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external,Direction{0},lev), "E", "r", FieldComponentType::Full);
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external,Direction{1},lev), "E", "t", FieldComponentType::Full);
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external,Direction{2},lev), "E", "z", FieldComponentType::Full);
 #else
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external, Direction{0}, lev), "E", "x");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external, Direction{1}, lev), "E", "y");
-        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external, Direction{2}, lev), "E", "z");
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external, Direction{0}, lev), "E", "x", FieldComponentType::Full);
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external, Direction{1}, lev), "E", "y", FieldComponentType::Full);
+        ReadExternalFieldFromFile(m_p_ext_field_params->external_fields_path, m_fields.get(FieldType::Efield_fp_external, Direction{2}, lev), "E", "z", FieldComponentType::Full);
 #endif
     }
 
@@ -1447,26 +1449,19 @@ WarpX::LoadExternalFields (int const lev)
 #if defined(WARPX_DIM_RZ)
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(n_rz_azimuthal_modes == 1,
                                          "External field reading is not implemented for more than one RZ mode (see #3829)");
-        ReadExternalFieldFromFile(external_fields_path,
-            m_fields.get(FieldType::B_external_particle_field, Direction{0}, lev),
-            "B", "r");
-        ReadExternalFieldFromFile(external_fields_path,
-            m_fields.get(FieldType::B_external_particle_field, Direction{1}, lev),
-            "B", "t");
-        ReadExternalFieldFromFile(external_fields_path,
-            m_fields.get(FieldType::B_external_particle_field, Direction{2}, lev),
-            "B", "z");
+        std::vector<std::string> coordnames =  {"r", "t", "z"};
 #else
+        std::vector<std::string> coordnames =  {"x", "y", "z"};
+#endif
         ReadExternalFieldFromFile(external_fields_path,
             m_fields.get(FieldType::B_external_particle_field, Direction{0}, lev),
-            "B", "x");
+            "B", coordnames[0], FieldComponentType::Full);
         ReadExternalFieldFromFile(external_fields_path,
             m_fields.get(FieldType::B_external_particle_field, Direction{1}, lev),
-            "B", "y");
+            "B", coordnames[1], FieldComponentType::Full);
         ReadExternalFieldFromFile(external_fields_path,
             m_fields.get(FieldType::B_external_particle_field, Direction{2}, lev),
-            "B", "z");
-#endif
+            "B", coordnames[2], FieldComponentType::Full);
     }
     if (mypc->m_E_ext_particle_s == "read_from_file") {
         std::string external_fields_path;
@@ -1475,26 +1470,49 @@ WarpX::LoadExternalFields (int const lev)
 #if defined(WARPX_DIM_RZ)
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(n_rz_azimuthal_modes == 1,
                                          "External field reading is not implemented for more than one RZ mode (see #3829)");
-        ReadExternalFieldFromFile(external_fields_path,
-            m_fields.get(FieldType::E_external_particle_field, Direction{0}, lev),
-            "E", "r");
-        ReadExternalFieldFromFile(external_fields_path,
-            m_fields.get(FieldType::E_external_particle_field, Direction{1}, lev),
-            "E", "t");
-        ReadExternalFieldFromFile(external_fields_path,
-            m_fields.get(FieldType::E_external_particle_field, Direction{2}, lev),
-            "E", "z");
+        std::vector<std::string> coordnames =  {"r", "t", "z"};
 #else
+        std::vector<std::string> coordnames =  {"x", "y", "z"};
+#endif
         ReadExternalFieldFromFile(external_fields_path,
             m_fields.get(FieldType::E_external_particle_field, Direction{0}, lev),
-            "E", "x");
+            "E", coordnames[0], FieldComponentType::Full);
         ReadExternalFieldFromFile(external_fields_path,
             m_fields.get(FieldType::E_external_particle_field, Direction{1}, lev),
-            "E", "y");
+            "E", coordnames[1], FieldComponentType::Full);
         ReadExternalFieldFromFile(external_fields_path,
             m_fields.get(FieldType::E_external_particle_field, Direction{2}, lev),
-            "E", "z");
+            "E", coordnames[2], FieldComponentType::Full);
+    }
+    if (mypc->m_E_ext_rf_particle_s == "read_from_file") {
+        std::string external_fields_path;
+        const amrex::ParmParse pp_particles("particles");
+        pp_particles.get("read_rf_fields_from_path", external_fields_path );
+#if defined(WARPX_DIM_RZ)
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(n_rz_azimuthal_modes == 1,
+                                         "External field reading is not implemented for more than one RZ mode (see #3829)");
+        std::vector<std::string> coordnames =  {"r", "t", "z"};
+#else
+        std::vector<std::string> coordnames =  {"x", "y", "z"};
 #endif
+        ReadExternalFieldFromFile(external_fields_path, 
+            m_fields.get(FieldType::E_external_particle_field_rf_real, Direction{0}, lev),
+            "E", coordnames[0], FieldComponentType::Real);
+        ReadExternalFieldFromFile(external_fields_path, 
+            m_fields.get(FieldType::E_external_particle_field_rf_real, Direction{1}, lev),
+            "E", coordnames[1], FieldComponentType::Real);
+        ReadExternalFieldFromFile(external_fields_path, 
+            m_fields.get(FieldType::E_external_particle_field_rf_real, Direction{2}, lev),
+            "E", coordnames[2], FieldComponentType::Real);
+        ReadExternalFieldFromFile(external_fields_path, 
+            m_fields.get(FieldType::E_external_particle_field_rf_imag, Direction{0}, lev),
+            "E", coordnames[0], FieldComponentType::Imag);
+        ReadExternalFieldFromFile(external_fields_path, 
+            m_fields.get(FieldType::E_external_particle_field_rf_imag, Direction{1}, lev),
+            "E", coordnames[1], FieldComponentType::Imag);
+        ReadExternalFieldFromFile(external_fields_path, 
+            m_fields.get(FieldType::E_external_particle_field_rf_imag, Direction{2}, lev),
+            "E", coordnames[2], FieldComponentType::Imag);
     }
 }
 
@@ -1502,7 +1520,7 @@ WarpX::LoadExternalFields (int const lev)
 void
 WarpX::ReadExternalFieldFromFile (
        const std::string& read_fields_from_path, amrex::MultiFab* mf,
-       const std::string& F_name, const std::string& F_component)
+       const std::string& F_name, const std::string& F_component, const FieldComponentType field_component)
 {
     // Get WarpX domain info
     auto& warpx = WarpX::GetInstance();
@@ -1571,8 +1589,29 @@ WarpX::ReadExternalFieldFromFile (
     const openPMD::Offset chunk_offset = {0,0,0};
     const openPMD::Extent chunk_extent = {extent[0], extent[1], extent[2]};
 
-    auto FC_chunk_data = FC.loadChunk<double>(chunk_offset,chunk_extent);
-    series.flush();
+    std::shared_ptr<double> FC_chunk_data;
+    if (field_component == FieldComponentType::Full) {
+        FC_chunk_data = FC.loadChunk<double>(chunk_offset,chunk_extent);
+        series.flush();
+    } else if (field_component == FieldComponentType::Real || field_component == FieldComponentType::Imag) {
+        auto x = FC.loadChunk<std::complex<double>>(chunk_offset, chunk_extent);
+        series.flush();
+        auto *x_data = x.get();
+
+        // Allocate memory for the real or imaginary part
+        FC_chunk_data = std::shared_ptr<double>(new double[extent0 * extent1 * extent2], std::default_delete<double[]>());
+        auto *FC_data_host = FC_chunk_data.get();
+
+        // Copy the appropriate part of the complex data to the real data
+        for (int i = 0; i < extent0 * extent1 * extent2; ++i) {
+            if (field_component == FieldComponentType::Real) {
+                FC_data_host[i] = x_data[i].real();
+            } else if (field_component == FieldComponentType::Imag) {
+                FC_data_host[i] = x_data[i].imag();
+            }
+        }
+    }
+
     auto *FC_data_host = FC_chunk_data.get();
 
     // Load data to GPU

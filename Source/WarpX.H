@@ -120,7 +120,7 @@ public:
     /** Push momentum one half step forward to synchronize with position.
      *  Also sets is_synchronized to `true`.
      */
-    void Synchronize ();
+    void Synchronize (amrex::Real cur_time);
 
     //
     // Functions used by implicit solvers
@@ -721,7 +721,7 @@ public:
 
     // This function does aux(lev) = fp(lev) + I(aux(lev-1)-cp(lev)).
     // Caller must make sure fp and cp have ghost cells filled.
-    void UpdateAuxilaryData ();
+    void UpdateAuxilaryData (amrex::Real cur_time);
     void UpdateAuxilaryDataStagToNodal ();
     void UpdateAuxilaryDataSameType ();
 
@@ -936,13 +936,19 @@ public:
      */
     void LoadExternalFields (int lev);
 
+    enum class FieldComponentType {
+        Full,   // Indicates the full (real) field should be read
+        Real,   // Indicates only the real part of a complex field should be read
+        Imag    // Indicates only the imaginary part of a complex field should be read
+    };
+
     /**
      * \brief Load field values from a user-specified openPMD file
      * for a specific field (specified by `F_name`)
      */
     void ReadExternalFieldFromFile (
          const std::string& read_fields_from_path, amrex::MultiFab* mf,
-         const std::string& F_name, const std::string& F_component);
+         const std::string& F_name, const std::string& F_component, const FieldComponentType field_component);
 
     /**
      * \brief
@@ -1590,7 +1596,7 @@ private:
      * At the beginning, we have B^{n} and E^{n}.
      * Particles have p^{n} and x^{n}.
      */
-    void ExplicitFillBoundaryEBUpdateAux ();
+    void ExplicitFillBoundaryEBUpdateAux (amrex::Real cur_time);
 
     void PushPSATD ();
 
