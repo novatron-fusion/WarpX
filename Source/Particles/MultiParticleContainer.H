@@ -304,6 +304,9 @@ public:
 
     std::string m_B_ext_particle_s = "none";
     std::string m_E_ext_particle_s = "none";
+    std::string m_E_ext_rf_particle_s = "none";
+    amrex::Real m_E_ext_rf_particle_frequency = 0;
+
     // Parser for B_external on the particle
     std::unique_ptr<amrex::Parser> m_Bx_particle_parser;
     std::unique_ptr<amrex::Parser> m_By_particle_parser;
