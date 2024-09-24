@@ -54,7 +54,7 @@ using namespace amrex;
 using warpx::fields::FieldType;
 
 void
-WarpX::UpdateAuxilaryData ()
+WarpX::UpdateAuxilaryData (amrex::Real cur_time)
 {
     WARPX_PROFILE("WarpX::UpdateAuxilaryData()");
 
@@ -78,6 +78,21 @@ WarpX::UpdateAuxilaryData ()
             amrex::MultiFab::Add(*Efield_aux[0], *E_ext_lev[0], 0, 0, E_ext_lev[0]->nComp(), guard_cells.ng_FieldGather);
             amrex::MultiFab::Add(*Efield_aux[1], *E_ext_lev[1], 0, 0, E_ext_lev[1]->nComp(), guard_cells.ng_FieldGather);
             amrex::MultiFab::Add(*Efield_aux[2], *E_ext_lev[2], 0, 0, E_ext_lev[2]->nComp(), guard_cells.ng_FieldGather);
+        }
+        if (mypc->m_E_ext_rf_particle_s == "read_from_file") {
+            ablastr::fields::VectorField Efield_aux = m_fields.get_alldirs(FieldType::Efield_aux, lev);
+            const auto& E_ext_lev_real = m_fields.get_alldirs(FieldType::E_external_particle_field_rf_real, lev);
+            const auto& E_ext_lev_imag = m_fields.get_alldirs(FieldType::E_external_particle_field_rf_imag, lev);
+
+            amrex::Real cos_value = std::cos(cur_time * 2 * M_PI * mypc->m_E_ext_rf_particle_frequency);
+            amrex::Real sin_value = std::sin(cur_time * 2 * M_PI * mypc->m_E_ext_rf_particle_frequency);
+
+            amrex::MultiFab::Saxpy(*Efield_aux[0], cos_value, *E_ext_lev_real[0], 0, 0, E_ext_lev_real[0]->nComp(), guard_cells.ng_FieldGather);
+            amrex::MultiFab::Saxpy(*Efield_aux[1], cos_value, *E_ext_lev_real[1], 0, 0, E_ext_lev_real[1]->nComp(), guard_cells.ng_FieldGather);
+            amrex::MultiFab::Saxpy(*Efield_aux[2], cos_value, *E_ext_lev_real[2], 0, 0, E_ext_lev_real[2]->nComp(), guard_cells.ng_FieldGather);
+            amrex::MultiFab::Saxpy(*Efield_aux[0], sin_value, *E_ext_lev_imag[0], 0, 0, E_ext_lev_imag[0]->nComp(), guard_cells.ng_FieldGather);
+            amrex::MultiFab::Saxpy(*Efield_aux[1], sin_value, *E_ext_lev_imag[1], 0, 0, E_ext_lev_imag[1]->nComp(), guard_cells.ng_FieldGather);
+            amrex::MultiFab::Saxpy(*Efield_aux[2], sin_value, *E_ext_lev_imag[2], 0, 0, E_ext_lev_imag[2]->nComp(), guard_cells.ng_FieldGather);
         }
         if (mypc->m_B_ext_particle_s == "read_from_file") {
             ablastr::fields::VectorField Bfield_aux = m_fields.get_alldirs(FieldType::Bfield_aux, lev);
