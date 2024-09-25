@@ -62,7 +62,7 @@ using namespace amrex;
 using ablastr::utils::SignalHandling;
 
 void
-WarpX::Synchronize () {
+WarpX::Synchronize (amrex::Real cur_time) {
     using ablastr::fields::Direction;
     using warpx::fields::FieldType;
 
@@ -73,7 +73,7 @@ WarpX::Synchronize () {
         FillBoundaryE_avg(guard_cells.ng_FieldGather);
         FillBoundaryB_avg(guard_cells.ng_FieldGather);
     }
-    UpdateAuxilaryData();
+    UpdateAuxilaryData(cur_time);
     FillBoundaryAux(guard_cells.ng_UpdateAux);
     for (int lev = 0; lev <= finest_level; ++lev) {
         mypc->PushP(
@@ -134,14 +134,14 @@ WarpX::Evolve (int numsteps)
             if (verbose) {
                 amrex::Print() << Utils::TextMsg::Info("updating timestep");
             }
-            Synchronize();
+            Synchronize(cur_time);
             UpdateDtFromParticleSpeeds();
         }
 
         // If position and velocity are synchronized, push velocity backward one half step
         if (evolve_scheme == EvolveScheme::Explicit)
         {
-            ExplicitFillBoundaryEBUpdateAux();
+            ExplicitFillBoundaryEBUpdateAux(cur_time);
         }
 
         // If needed, deposit the initial ion charge and current densities that
@@ -221,7 +221,7 @@ WarpX::Evolve (int numsteps)
         if (evolve_scheme == EvolveScheme::Explicit) {
             // At the end of last step, push p by 0.5*dt to synchronize
             if (cur_time + dt[0] >= stop_time - 1.e-3*dt[0] || step == numsteps_max-1) {
-                Synchronize();
+                Synchronize(cur_time);
             }
         }
 
@@ -470,7 +470,7 @@ void WarpX::checkEarlyUnusedParams ()
     amrex::Print() << ablastr::warn_manager::GetWMInstance().PrintGlobalWarnings("FIRST STEP");
 }
 
-void WarpX::ExplicitFillBoundaryEBUpdateAux ()
+void WarpX::ExplicitFillBoundaryEBUpdateAux (amrex::Real cur_time)
 {
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(evolve_scheme == EvolveScheme::Explicit,
         "Cannot call WarpX::ExplicitFillBoundaryEBUpdateAux without Explicit evolve scheme set!");
@@ -487,7 +487,7 @@ void WarpX::ExplicitFillBoundaryEBUpdateAux ()
         FillBoundaryE(guard_cells.ng_alloc_EB);
         FillBoundaryB(guard_cells.ng_alloc_EB);
 
-        UpdateAuxilaryData();
+        UpdateAuxilaryData(cur_time);
         FillBoundaryAux(guard_cells.ng_UpdateAux);
         // on first step, push p by -0.5*dt
         for (int lev = 0; lev <= finest_level; ++lev)
@@ -525,7 +525,7 @@ void WarpX::ExplicitFillBoundaryEBUpdateAux ()
                 FillBoundaryAux(guard_cells.ng_UpdateAux);
             }
         }
-        UpdateAuxilaryData();
+        UpdateAuxilaryData(cur_time);
         FillBoundaryAux(guard_cells.ng_UpdateAux);
     }
 }
@@ -943,7 +943,7 @@ WarpX::OneStep_sub1 (Real cur_time)
     // TODO Remove call to FillBoundaryAux before UpdateAuxilaryData?
     FillBoundaryAux(guard_cells.ng_UpdateAux);
     // iii) Get auxiliary fields on the fine grid, at dt[fine_lev]
-    UpdateAuxilaryData();
+    UpdateAuxilaryData(cur_time);
     FillBoundaryAux(guard_cells.ng_UpdateAux);
 
     // iv) Push particles and fields on the fine patch (second fine step)
