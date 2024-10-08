@@ -30,12 +30,11 @@
       "description": "Default build for AMD Radeon 7900 XTX using Ninja generator",
       "cacheVariables": {
         "WarpX_COMPUTE": "HIP",
-	      "AMReX_AMD_ARCH": "gfx1100",
+        "AMReX_AMD_ARCH": "gfx1100",
         "CMAKE_C_COMPILER": "/opt/rocm/bin/amdclang",
         "CMAKE_CXX_COMPILER": "/opt/rocm/bin/amdclang++"
       },
-      "environment":
-      {
+      "environment": {
         "hiprand_DIR": "/opt/rocm-6.2.2/lib/cmake/hiprand",
         "rocprim_DIR": "/opt/rocm-6.2.2/lib/cmake/rocprim",
         "rocrand_DIR": "/opt/rocm-6.2.2/lib/cmake/rocrand",
@@ -96,36 +95,61 @@
       "configurePreset": "lumi"
     }
   ],
-  "testPresets": [ 
+  "testPresets": [
     {
       "name": "default",
       "configurePreset": "default",
-      "output": {"outputOnFailure": true},
-      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
     },
     {
       "name": "cuda",
       "configurePreset": "cuda",
-      "output": {"outputOnFailure": true},
-      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
     },
     {
       "name": "debug",
       "configurePreset": "debug",
-      "output": {"outputOnFailure": true},
-      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
     },
     {
       "name": "amd",
       "configurePreset": "amd",
-      "output": {"outputOnFailure": true},
-      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
     },
     {
       "name": "lumi",
       "configurePreset": "lumi",
-      "output": {"outputOnFailure": true},
-      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
     }
   ],
   "workflowPresets": [
