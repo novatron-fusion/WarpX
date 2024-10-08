@@ -1,0 +1,218 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default build",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "WarpX_COMPUTE": "OMP",
+        "WarpX_DIMS": "3",
+        "WarpX_EB": "ON",
+        "WarpX_PARTICLE_PRECISION": "SINGLE",
+        "WarpX_PRECISION": "SINGLE",
+        "WarpX_PYTHON": "ON",
+        "WarpX_OPENPMD": "ON",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "amd",
+      "inherits": "default",
+      "displayName": "Default build for AMD Radeon 7900 XTX",
+      "description": "Default build for AMD Radeon 7900 XTX using Ninja generator",
+      "cacheVariables": {
+        "WarpX_COMPUTE": "HIP",
+	      "AMReX_AMD_ARCH": "gfx1100",
+        "CMAKE_C_COMPILER": "/opt/rocm/bin/amdclang",
+        "CMAKE_CXX_COMPILER": "/opt/rocm/bin/amdclang++"
+      },
+      "environment":
+      {
+        "hiprand_DIR": "/opt/rocm-6.2.2/lib/cmake/hiprand",
+        "rocprim_DIR": "/opt/rocm-6.2.2/lib/cmake/rocprim",
+        "rocrand_DIR": "/opt/rocm-6.2.2/lib/cmake/rocrand",
+        "CMAKE_PREFIX_PATH": "/opt/rocm-6.2.2/lib/cmake/hsa-runtime64",
+        "amd_comgr_DIR": "/opt/rocm-6.2.2/lib/cmake/amd_comgr",
+        "AMDDeviceLibs_DIR": "/opt/rocm-6.2.2/lib/cmake/AMDDeviceLibs",
+        "hip_DIR": "/opt/rocm-6.2.2/lib/cmake/hip/"
+      }
+    },
+    {
+      "name": "cuda",
+      "inherits": "default",
+      "displayName": "Default build for CUDA",
+      "description": "Default build for CUDA using Ninja generator",
+      "cacheVariables": {
+        "WarpX_COMPUTE": "CUDA"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "default",
+      "displayName": "Debug build",
+      "description": "Debug build using Ninja generator",
+      "cacheVariables": {
+        "WarpX_COMPUTE": "NOACC",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "lumi",
+      "inherits": "amd",
+      "displayName": "Default build for MI250X, e.g. LUMI-G",
+      "description": "Default build form MI250X using Ninja Multi-Config generator",
+      "cacheVariables": {
+        "AMReX_AMD_ARCH": "gfx90a"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "cuda",
+      "configurePreset": "cuda"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "amd",
+      "configurePreset": "amd"
+    },
+    {
+      "name": "lumi",
+      "configurePreset": "lumi"
+    }
+  ],
+  "testPresets": [ 
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": {"outputOnFailure": true},
+      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+    },
+    {
+      "name": "cuda",
+      "configurePreset": "cuda",
+      "output": {"outputOnFailure": true},
+      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {"outputOnFailure": true},
+      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+    },
+    {
+      "name": "amd",
+      "configurePreset": "amd",
+      "output": {"outputOnFailure": true},
+      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+    },
+    {
+      "name": "lumi",
+      "configurePreset": "lumi",
+      "output": {"outputOnFailure": true},
+      "execution": {"noTestsAction": "error", "stopOnFailure": true}
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "default",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "default"
+        },
+        {
+          "type": "build",
+          "name": "default"
+        },
+        {
+          "type": "test",
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "cuda",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "cuda"
+        },
+        {
+          "type": "build",
+          "name": "cuda"
+        },
+        {
+          "type": "test",
+          "name": "cuda"
+        }
+      ]
+    },
+    {
+      "name": "debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug"
+        },
+        {
+          "type": "build",
+          "name": "debug"
+        },
+        {
+          "type": "test",
+          "name": "debug"
+        }
+      ]
+    },
+    {
+      "name": "amd",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "amd"
+        },
+        {
+          "type": "build",
+          "name": "amd"
+        },
+        {
+          "type": "test",
+          "name": "amd"
+        }
+      ]
+    },
+    {
+      "name": "lumi",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "lumi"
+        },
+        {
+          "type": "build",
+          "name": "lumi"
+        },
+        {
+          "type": "test",
+          "name": "lumi"
+        }
+      ]
+    }
+  ]
+}
