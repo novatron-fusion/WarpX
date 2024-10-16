@@ -1,0 +1,58 @@
+{
+  "version": 9,
+  "include": [
+    "${sourceDir}/cmake/CommonCMakePresetTargets.json"
+  ],
+  "configurePresets": [
+    {
+      "name": "lumi",
+      "inherits": "rocm",
+      "displayName": "Default build for MI250X, e.g. LUMI-G",
+      "description": "Default build form MI250X using Ninja Multi-Config generator",
+      "binaryDir": "${sourceDir}/build_lumi",
+      "cacheVariables": {
+        "AMReX_AMD_ARCH": "gfx90a",
+        "WarpX_CCACHE": "OFF",
+        "WarpX_DIMS": "2;3"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "lumi",
+      "configurePreset": "lumi"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "lumi",
+      "configurePreset": "lumi",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "lumi",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "lumi"
+        },
+        {
+          "type": "build",
+          "name": "lumi"
+        },
+        {
+          "type": "test",
+          "name": "lumi"
+        }
+      ]
+    }
+  ]
+}
