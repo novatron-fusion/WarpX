@@ -28,6 +28,7 @@
       "inherits": "default",
       "displayName": "Default build for ROCm",
       "description": "Default build for ROCm using Ninja generator",
+      "binaryDir": "${sourceDir}/build_rocm",
       "cacheVariables": {
         "WarpX_COMPUTE": "HIP",
         "CMAKE_C_COMPILER": "/opt/rocm/bin/amdclang",
@@ -48,6 +49,7 @@
       "inherits": "default",
       "displayName": "Default build for CUDA",
       "description": "Default build for CUDA using Ninja generator",
+      "binaryDir": "${sourceDir}/build_cuda",
       "cacheVariables": {
         "WarpX_COMPUTE": "CUDA"
       }
@@ -57,6 +59,7 @@
       "inherits": "default",
       "displayName": "Debug build",
       "description": "Debug build using Ninja generator",
+      "binaryDir": "${sourceDir}/build_debug",
       "cacheVariables": {
         "WarpX_COMPUTE": "NOACC",
         "CMAKE_BUILD_TYPE": "Debug"

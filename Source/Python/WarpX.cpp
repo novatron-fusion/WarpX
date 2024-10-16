@@ -275,7 +275,7 @@ The physical fields in WarpX have the following naming:
             "Executes calculation of the curl of the external A in the hybrid solver."
         )
         .def("synchronize",
-            [] (WarpX& wx) { wx.Synchronize(); },
+            [] (WarpX& wx) { wx.Synchronize(0.0); }, // TODO: rho: what time to pass here?
             "Synchronize particle velocities and positions."
         )
     ;
