@@ -946,9 +946,22 @@ public:
      * \brief Load field values from a user-specified openPMD file
      * for a specific field (specified by `F_name`)
      */
-    void ReadExternalFieldFromFile (
-         const std::string& read_fields_from_path, amrex::MultiFab* mf,
-         const std::string& F_name, const std::string& F_component, const FieldComponentType field_component);
+    void ReadExternalFieldFromFile(
+        const std::string &read_fields_from_path, amrex::MultiFab *mf,
+        const std::string &F_name, const std::string &F_component, const FieldComponentType field_component, amrex::Real &t0, amrex::Real &frequency);
+
+    /**
+     * \brief Load field values from a user-specified openPMD file
+     * for a specific field (specified by `F_name`)
+     */
+    void ReadExternalFieldFromFile(
+        const std::string &read_fields_from_path, amrex::MultiFab *mf,
+        const std::string &F_name, const std::string &F_component, const FieldComponentType field_component)
+    {
+        amrex::Real t0;
+        amrex::Real frequency;
+        ReadExternalFieldFromFile(read_fields_from_path, mf, F_name, F_component, field_component, t0, frequency);
+    }
 
     /**
      * \brief

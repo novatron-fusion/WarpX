@@ -1484,10 +1484,12 @@ WarpX::LoadExternalFields (int const lev)
             m_fields.get(FieldType::E_external_particle_field, Direction{2}, lev),
             "E", coordnames[2], FieldComponentType::Full);
     }
+    amrex::Print() << "m_E_ext_rf_particle_s: " << mypc->m_E_ext_rf_particle_s << std::endl;
     if (mypc->m_E_ext_rf_particle_s == "read_from_file") {
         std::string external_fields_path;
         const amrex::ParmParse pp_particles("particles");
         pp_particles.get("read_rf_fields_from_path", external_fields_path );
+        amrex::Print() << "read_rf_fields_from_path: " << external_fields_path << std::endl;
 #if defined(WARPX_DIM_RZ)
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(n_rz_azimuthal_modes == 1,
                                          "External field reading is not implemented for more than one RZ mode (see #3829)");
@@ -1497,7 +1499,8 @@ WarpX::LoadExternalFields (int const lev)
 #endif
         ReadExternalFieldFromFile(external_fields_path, 
             m_fields.get(FieldType::E_external_particle_field_rf_real, Direction{0}, lev),
-            "E", coordnames[0], FieldComponentType::Real);
+            "E", coordnames[0], FieldComponentType::Real, 
+            mypc->m_E_ext_rf_particle_t0, mypc->m_E_ext_rf_particle_frequency);
         ReadExternalFieldFromFile(external_fields_path, 
             m_fields.get(FieldType::E_external_particle_field_rf_real, Direction{1}, lev),
             "E", coordnames[1], FieldComponentType::Real);
@@ -1520,7 +1523,7 @@ WarpX::LoadExternalFields (int const lev)
 void
 WarpX::ReadExternalFieldFromFile (
        const std::string& read_fields_from_path, amrex::MultiFab* mf,
-       const std::string& F_name, const std::string& F_component, const FieldComponentType field_component)
+       const std::string& F_name, const std::string& F_component, const FieldComponentType field_component, amrex::Real &t0, amrex::Real &frequency)
 {
     // Get WarpX domain info
     auto& warpx = WarpX::GetInstance();
@@ -1588,6 +1591,13 @@ WarpX::ReadExternalFieldFromFile (
     // Thus, `chunk_offset` and `chunk_extent` should be modified accordingly in another PR.
     const openPMD::Offset chunk_offset = {0,0,0};
     const openPMD::Extent chunk_extent = {extent[0], extent[1], extent[2]};
+
+    if(iseries.containsAttribute("frequency")) {
+        frequency = iseries.getAttribute("frequency").get<double>();
+    }
+    if(iseries.containsAttribute("t0")) {
+        t0 = iseries.getAttribute("t0").get<double>();
+    }
 
     std::shared_ptr<double> FC_chunk_data;
     if (field_component == FieldComponentType::Full) {

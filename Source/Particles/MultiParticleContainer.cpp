@@ -148,6 +148,12 @@ MultiParticleContainer::ReadParameters ()
                        m_E_ext_particle_s.end(),
                        m_E_ext_particle_s.begin(),
                        ::tolower);
+        pp_particles.query("E_ext_rf_particle_init_style", m_E_ext_rf_particle_s);
+        std::transform(m_E_ext_rf_particle_s.begin(),
+                       m_E_ext_rf_particle_s.end(),
+                       m_E_ext_rf_particle_s.begin(),
+                       ::tolower);
+        amrex::Print() << "E_ext_rf_particle_init_style: " << m_E_ext_rf_particle_s << std::endl;
 
         // if the input string for B_ext_particle_s is
         // "parse_b_ext_particle_function" then the mathematical expression

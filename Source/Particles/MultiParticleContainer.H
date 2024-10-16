@@ -306,6 +306,8 @@ public:
     std::string m_E_ext_particle_s = "none";
     std::string m_E_ext_rf_particle_s = "none";
     amrex::Real m_E_ext_rf_particle_frequency = 0;
+    amrex::Real m_E_ext_rf_particle_t0 = 0;
+    amrex::Real m_last_time = 0; // TODO rho: FIXME: ugly hack
 
     // Parser for B_external on the particle
     std::unique_ptr<amrex::Parser> m_Bx_particle_parser;

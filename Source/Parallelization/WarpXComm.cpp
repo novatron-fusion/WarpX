@@ -80,12 +80,19 @@ WarpX::UpdateAuxilaryData (amrex::Real cur_time)
             amrex::MultiFab::Add(*Efield_aux[2], *E_ext_lev[2], 0, 0, E_ext_lev[2]->nComp(), guard_cells.ng_FieldGather);
         }
         if (mypc->m_E_ext_rf_particle_s == "read_from_file") {
+            if(cur_time == 0) {
+                cur_time = mypc->m_last_time;
+                amrex::Print() << "picking up last time = " << cur_time << std::endl;
+            } else {
+                mypc->m_last_time = cur_time;
+            }
             ablastr::fields::VectorField Efield_aux = m_fields.get_alldirs(FieldType::Efield_aux, lev);
             const auto& E_ext_lev_real = m_fields.get_alldirs(FieldType::E_external_particle_field_rf_real, lev);
             const auto& E_ext_lev_imag = m_fields.get_alldirs(FieldType::E_external_particle_field_rf_imag, lev);
 
-            amrex::Real cos_value = std::cos(cur_time * 2 * M_PI * mypc->m_E_ext_rf_particle_frequency);
-            amrex::Real sin_value = std::sin(cur_time * 2 * M_PI * mypc->m_E_ext_rf_particle_frequency);
+            amrex::Real cos_value = std::cos((cur_time - mypc->m_E_ext_rf_particle_t0) * 2 * M_PI * mypc->m_E_ext_rf_particle_frequency);
+            amrex::Real sin_value = -std::sin((cur_time - mypc->m_E_ext_rf_particle_t0) * 2 * M_PI * mypc->m_E_ext_rf_particle_frequency);
+            amrex::Print() << "Adding RF fields to the particle fields. cur_time = " << cur_time << ", cos = " << cos_value << ", sin = " << sin_value << std::endl;
 
             amrex::MultiFab::Saxpy(*Efield_aux[0], cos_value, *E_ext_lev_real[0], 0, 0, E_ext_lev_real[0]->nComp(), guard_cells.ng_FieldGather);
             amrex::MultiFab::Saxpy(*Efield_aux[1], cos_value, *E_ext_lev_real[1], 0, 0, E_ext_lev_real[1]->nComp(), guard_cells.ng_FieldGather);
