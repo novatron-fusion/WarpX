@@ -110,7 +110,7 @@ private:
      *  For every lab-frame buffer, the data stored in this cell-centered MultiFab
      *  is sliced, back-transformed, and stored in the output multifab, m_mf_output.
      */
-    void PrepareFieldDataForOutput () override;
+    void PrepareFieldDataForOutput (amrex::Real cur_time) override;
     /** The Particle Geometry, BoxArray, and RealBox are set for the lab-frame output */
     void PrepareParticleDataForOutput() override;
 

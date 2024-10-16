@@ -49,7 +49,7 @@ public:
      *
      * Fields are computed (e.g., cell-centered or back-transformed)
        on-the-fly using a functor. */
-    void ComputeAndPack ();
+    void ComputeAndPack (amrex::Real cur_time);
 
     /** \brief Flush particle and field buffers to file using the FlushFormat member variable.
      *
@@ -110,7 +110,7 @@ public:
      * \param[in] step current timestep
      * \param[in] force_flush used to force-fully write data stored in buffers.
      */
-    void FilterComputePackFlush (int step, bool force_flush=false);
+    void FilterComputePackFlush (int step, amrex::Real cur_time, bool force_flush=false);
     /** Whether the last timestep is always dumped */
     [[nodiscard]] bool DoDumpLastTimestep () const {return  m_dump_last_timestep;}
     /** Returns the number of snapshots used in BTD. For Full-Diagnostics, the value is 1*/
@@ -210,7 +210,7 @@ protected:
     /** Prepare data (either fill-boundary or cell-centered data for
         back-transform diagnostics) to be processed for diagnostics.
      */
-    virtual void PrepareFieldDataForOutput () {}
+    virtual void PrepareFieldDataForOutput ([[maybe_unused]] amrex::Real cur_time) {}
     /** The Particle Geometry, BoxArray, and RealBox are set for the lab-frame output */
     virtual void PrepareParticleDataForOutput () {}
     /** Update the physical extent of the diagnostic domain for moving window and

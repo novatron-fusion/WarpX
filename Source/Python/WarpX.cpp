@@ -247,7 +247,7 @@ The physical fields in WarpX have the following naming:
             "Executes projection based divergence cleaner on loaded Bfield_fp_external."
         )
         .def("synchronize",
-            [] (WarpX& wx) { wx.Synchronize(0.0); }, // TODO: rho: what time to pass here?
+            [] (WarpX& wx) { wx.Synchronize(wx.t_new[0]); },
             "Synchronize particle velocities and positions."
         )
     ;

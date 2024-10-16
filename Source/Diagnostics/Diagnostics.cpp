@@ -547,11 +547,11 @@ Diagnostics::InitBaseData ()
 }
 
 void
-Diagnostics::ComputeAndPack ()
+Diagnostics::ComputeAndPack (amrex::Real cur_time)
 {
     PrepareBufferData();
     // prepare the field-data necessary to compute output data
-    PrepareFieldDataForOutput();
+    PrepareFieldDataForOutput(cur_time);
     // Prepare the particle data necessary to compute output data
     // Field-data is called first for BTD, since the z-slice location is used to prepare particle data
     // to determine if the transform is to be done this step.
@@ -592,13 +592,13 @@ Diagnostics::ComputeAndPack ()
 
 
 void
-Diagnostics::FilterComputePackFlush (int step, bool force_flush)
+Diagnostics::FilterComputePackFlush (int step, amrex::Real cur_time, bool force_flush)
 {
     WARPX_PROFILE("Diagnostics::FilterComputePackFlush()");
     MovingWindowAndGalileanDomainShift (step);
 
     if ( DoComputeAndPack (step, force_flush) ) {
-        ComputeAndPack();
+        ComputeAndPack(cur_time);
     }
 
     for (int i_buffer = 0; i_buffer < m_num_buffers; ++i_buffer) {

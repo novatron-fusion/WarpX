@@ -71,7 +71,7 @@ private:
     void InitializeFieldFunctors (int lev) override;
     void InitializeParticleBuffer () override;
     /** Prepare field data to be used for diagnostics */
-    void PrepareFieldDataForOutput () override;
+    void PrepareFieldDataForOutput (amrex::Real cur_time) override;
     /** Prepare particle data to be used for diagnostics. */
     void PrepareParticleDataForOutput() override {}
     /** Update the physical extent of the diagnostic domain for moving window and

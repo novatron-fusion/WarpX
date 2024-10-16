@@ -80,12 +80,6 @@ WarpX::UpdateAuxilaryData (amrex::Real cur_time)
             amrex::MultiFab::Add(*Efield_aux[2], *E_ext_lev[2], 0, 0, E_ext_lev[2]->nComp(), guard_cells.ng_FieldGather);
         }
         if (mypc->m_E_ext_rf_particle_s == "read_from_file") {
-            if(cur_time == 0) {
-                cur_time = mypc->m_last_time;
-                amrex::Print() << "picking up last time = " << cur_time << std::endl;
-            } else {
-                mypc->m_last_time = cur_time;
-            }
             ablastr::fields::VectorField Efield_aux = m_fields.get_alldirs(FieldType::Efield_aux, lev);
             const auto& E_ext_lev_real = m_fields.get_alldirs(FieldType::E_external_particle_field_rf_real, lev);
             const auto& E_ext_lev_imag = m_fields.get_alldirs(FieldType::E_external_particle_field_rf_imag, lev);

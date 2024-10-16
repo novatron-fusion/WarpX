@@ -796,7 +796,7 @@ BTDiagnostics::UpdateBufferData ()
 }
 
 void
-BTDiagnostics::PrepareFieldDataForOutput ()
+BTDiagnostics::PrepareFieldDataForOutput ([[maybe_unused]] amrex::Real cur_time)
 {
     // Initialize fields functors only if do_back_transformed_fields is selected
     if (!m_do_back_transformed_fields) { return; }

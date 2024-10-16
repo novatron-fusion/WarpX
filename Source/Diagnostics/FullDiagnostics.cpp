@@ -776,15 +776,14 @@ FullDiagnostics::InitializeFieldFunctors (int lev)
 
 
 void
-FullDiagnostics::PrepareFieldDataForOutput ()
+FullDiagnostics::PrepareFieldDataForOutput (amrex::Real cur_time)
 {
     // First, make sure all guard cells are properly filled
     // Probably overkill/unnecessary, but safe and shouldn't happen often !!
     auto & warpx = WarpX::GetInstance();
     warpx.FillBoundaryE(warpx.getngEB());
     warpx.FillBoundaryB(warpx.getngEB());
-    // TODO rho: FIXME This will write fields with the RF component from t=0!
-    warpx.UpdateAuxilaryData(0);
+    warpx.UpdateAuxilaryData(cur_time);
     warpx.FillBoundaryAux(warpx.getngUpdateAux());
 
     // Update the RealBox used for the geometry filter in particle diags

@@ -611,7 +611,7 @@ WarpX::InitData ()
 
     if (restart_chkfile.empty() || write_diagnostics_on_restart) {
         // Write full diagnostics before the first iteration.
-        multi_diags->FilterComputePackFlush(istep[0] - 1);
+        multi_diags->FilterComputePackFlush(istep[0] - 1, t_new[0]);
 
         // Write reduced diagnostics before the first iteration.
         if (reduced_diags->m_plot_rd != 0)

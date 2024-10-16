@@ -77,17 +77,17 @@ MultiDiagnostics::ReadParameters ()
 }
 
 void
-MultiDiagnostics::FilterComputePackFlush (int step, bool force_flush, bool BackTransform)
+MultiDiagnostics::FilterComputePackFlush (int step, amrex::Real cur_time, bool force_flush, bool BackTransform)
 {
     int i = 0;
     for (auto& diag : alldiags){
         if (BackTransform) {
             if (diags_types[i] == DiagTypes::BackTransformed) {
-                diag->FilterComputePackFlush (step, force_flush);
+                diag->FilterComputePackFlush (step, cur_time, force_flush);
             }
         } else {
             if (diags_types[i] != DiagTypes::BackTransformed) {
-                diag->FilterComputePackFlush (step, force_flush);
+                diag->FilterComputePackFlush (step, cur_time, force_flush);
             }
         }
         ++i;
