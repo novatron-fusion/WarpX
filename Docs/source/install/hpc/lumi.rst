@@ -27,8 +27,91 @@ If you are new to this system, **please see the following resources**:
 
 .. _building-lumi-preparation:
 
-Preparation
------------
+Preparation for building locally
+--------------------------------
+
+It is possible to build WarpX on your local computer, creating a Singularity container image that can be transferred to LUMI.
+Start by installing the dependencies on your local machine:
+
+.. code-block:: bash
+
+   conda create -n warpx-cpu-mpich-dev -c conda-forge blaspp boost ccache cmake compilers git "heffte=*=mpi_mpich*" lapackpp "openpmd-api=*=mpi_mpich*" openpmd-viewer python make numpy pandas scipy yt "fftw=*=mpi_mpich*" pkg-config matplotlib mamba mpich mpi4py ninja pip virtualenv
+   conda activate warpx-cpu-mpich-dev
+
+You also need the HIP SDK and ROCm installed on your local machine. On Ubuntu, you can install them via:
+
+.. code-block:: bash
+
+   sudo apt install rocm-hip rocm-opencl rocm-dev rocm-utils
+
+Next, clone the WarpX repository and build the application:
+
+.. code-block:: bash
+   hiprand_DIR=/opt/rocm/lib/cmake/hiprand \
+      rocprim_DIR=/opt/rocm/lib/cmake/rocprim \
+      rocrand_DIR=/opt/rocm/lib/cmake/rocrand \
+      rocfft_DIR=/opt/rocm/lib/cmake/rocfft \
+      CMAKE_PREFIX_PATH=/opt/rocm/lib/cmake/hsa-runtime64 \
+      amd_comgr_DIR=/opt/rocm/lib/cmake/amd_comgr \
+      AMDDeviceLibs_DIR=/opt/rocm/lib/cmake/AMDDeviceLibs \
+      hip_DIR=/opt/rocm/lib/cmake/hip \
+      cmake -S . -B build_lumi -DWarpX_COMPUTE=HIP -DWarpX_FFT=ON \
+      -DWarpX_QED_TABLE_GEN=ON -DWarpX_QED_TABLES_GEN_OMP=OFF \
+      -DWarpX_DIMS="2;3" \
+      -DWarpX_EB=ON \
+      -DWarpX_PARTICLE_PRECISION=SINGLE \
+      -DWarpX_PRECISION=SINGLE \
+      -DWarpX_PYTHON=ON \
+      -DWarpX_OPENPMD=ON \
+      -DCMAKE_C_COMPILER=/opt/rocm/bin/amdclang \
+      -DCMAKE_CXX_COMPILER=/opt/rocm/bin/amdclang++ \
+      -DAMReX_AMD_ARCH=gfx90a \
+      -G Ninja
+
+   cmake --build build_lumi \
+      --target lib_2d --target lib_3d --target pyamrex_pip_wheel --target pip_wheel
+   
+
+   cp ./build/_deps/fetchedpyamrex-build/amrex-whl/amrex-*-py3-none-any.whl \
+      ./build/warpx-whl/pywarpx-*-py3-none-any.whl \
+      build/lib/libamrex_2d.so \
+      build/lib/libamrex_3d.so \
+      ~/git/nova/projects/lumi/sif
+   sudo singularity build -F warpx.sif warpx.def
+
+
+Building using a singularity build agent
+----------------------------------------
+
+To build WarpX using a Singularity build agent, follow these steps:
+
+1. Create a build directory:
+
+   .. code-block:: bash
+
+      mkdir build_lumi
+
+2. Build the ROCm build agent Singularity image:
+
+   .. code-block:: bash
+
+      singularity build --fakeroot -F build_lumi/rocm-build-agent.sif Tools/machines/lumi-csc/lumi-warpx-rocm-build-agent.def
+
+3. Run the ROCm build agent Singularity image:
+
+   .. code-block:: bash
+
+      singularity run --containall --rocm --no-mount hostfs --bind .:/opt/src/WarpX build_lumi/rocm-build-agent.sif
+
+4. Build the final WarpX Singularity image:
+
+   .. code-block:: bash
+
+      singularity build --fakeroot -F build_lumi/warpx-lumi.sif Tools/machines/lumi-csc/lumi-singularity.def
+
+
+Preparation for building on LUMI
+--------------------------------
 
 Use the following commands to download the WarpX source code:
 

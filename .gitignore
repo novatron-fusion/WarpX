@@ -55,6 +55,7 @@ spack.lock
 cmake-build-*/
 .kdev?/
 *.kdev?
+CMakeUserPresets.json
 
 ##########
 # VsCode #
