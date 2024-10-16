@@ -1,17 +1,7 @@
 
 from pywarpx import picmi
-import pywarpx
 
-
-import picmistandard
-
-class LoadAppliedRFField(picmistandard.PICMI_LoadAppliedField):
-    def applied_field_initialize_inputs(self):
-        pywarpx.particles.read_rf_fields_from_path = self.read_fields_from_path
-        if self.load_E:
-            pywarpx.particles.E_ext_rf_particle_init_style = "read_from_file"
-        if self.load_B:
-            assert False, "Loading RF B field from file not implemented yet"
+from picmi_ext import ParticleExternalFileInjector, LoadAppliedRFField
 
 constants = picmi.constants
 
@@ -19,7 +9,7 @@ constants = picmi.constants
 ####### GENERAL PARAMETERS ######
 #################################
 
-max_steps = 200
+max_steps = 150000
 
 nx = 256
 ny = 256
@@ -42,6 +32,35 @@ use_filter = 0
 
 # Order of particle shape factors
 particle_shape = 3
+
+
+#################################
+############ PLASMA #############
+#################################
+
+proton_dist = ParticleExternalFileInjector(
+    filename="protons.h5"
+)
+
+protons = picmi.Species(
+    particle_type="H",
+    name="protons",
+    charge="q_e",
+    mass="m_p",
+    initial_distribution=proton_dist,
+)
+
+electron_dist = ParticleExternalFileInjector(
+    filename="electrons.h5"
+)
+
+electrons = picmi.Species(
+    particle_type="electron",
+    name="electrons",
+    charge="-q_e",
+    mass="m_e",
+    initial_distribution=electron_dist,
+)
 
 
 #################################
@@ -81,12 +100,19 @@ solver = picmi.ElectromagneticSolver(grid=grid, method="Yee", cfl=0.9, divE_clea
 ######### DIAGNOSTICS ###########
 #################################
 
+particle_diag = picmi.ParticleDiagnostic(
+    name="diag1",
+    warpx_format="openpmd",
+    period=500,
+    species=[protons, electrons],
+    data_list=["ux", "uy", "uz", "x", "y", "z", "weighting"],
+)
 field_diag = picmi.FieldDiagnostic(
     name="diag1",
     warpx_format="openpmd",
     grid=grid,
-    period=1,
-    data_list=["Bx", "By", "Bz", "Ex", "Ey", "Ez", "Jx", "Jy", "Jz"],
+    period=500,
+    data_list=["Bx", "By", "Bz", "Ex", "Ey", "Ez", "Jx", "Jy", "Jz", "rho_electrons", "rho_protons"],
 )
 
 #################################
@@ -108,7 +134,14 @@ sim = picmi.Simulation(
 sim.add_applied_field(B_ext)
 sim.add_applied_field(RF_ext)
 
+
+sim.add_species(protons, layout=None)
+ 
+sim.add_species(electrons, layout=None)
+
+
 sim.add_diagnostic(field_diag)
+sim.add_diagnostic(particle_diag)
 
 #################################
 ##### SIMULATION EXECUTION ######
