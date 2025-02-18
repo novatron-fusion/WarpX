@@ -2681,13 +2681,16 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
     Custom class to handle set up of embedded boundaries specific to WarpX.
     If embedded boundary initialization is added to picmistandard this can be
     changed to inherit that functionality. The geometry can be specified either as
-    an implicit function or as an STL file (ASCII or binary). In the latter case the
+    an implicit function, WKT file, or as an STL file (ASCII or binary). In the latter case the
     geometry specified in the STL file can be scaled, translated and inverted.
 
     Parameters
     ----------
     implicit_function: string
         Analytic expression describing the embedded boundary
+
+    wkt_file: string
+        WKT file path (string), file contains the embedded boundary geometry
 
     stl_file: string
         STL file path (string), file contains the embedded boundary geometry
@@ -2716,6 +2719,7 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
     def __init__(
         self,
         implicit_function=None,
+        wkt_file=None,
         stl_file=None,
         stl_scale=None,
         stl_center=None,
@@ -2724,11 +2728,12 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
         cover_multiple_cuts=None,
         **kw,
     ):
-        assert stl_file is None or implicit_function is None, Exception(
-            "Only one between implicit_function and stl_file can be specified"
+        assert stl_file is None or implicit_function is None or wkt_file is None, Exception(
+            "Only one between implicit_function, stl_file, and wkt_file can be specified"
         )
 
         self.implicit_function = implicit_function
+        self.wkt_file = wkt_file
         self.stl_file = stl_file
 
         if stl_file is None:
@@ -2774,6 +2779,9 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
                 self.implicit_function, self.mangle_dict
             )
             pywarpx.warpx.eb_implicit_function = expression
+
+        if self.wkt_file is not None:
+            pywarpx.warpx.wkt_file = self.wkt_file
 
         if self.stl_file is not None:
             pywarpx.eb2.geom_type = "stl"
