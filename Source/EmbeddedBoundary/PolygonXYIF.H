@@ -88,7 +88,7 @@ namespace
         PolygonXYIF &operator=(const PolygonXYIF &rhs) = delete;
         PolygonXYIF &operator=(PolygonXYIF &&rhs) = delete;
 
-        AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         amrex::Real
         operator()(AMREX_D_DECL(amrex::Real x, amrex::Real y, amrex::Real z))
             const noexcept
@@ -108,7 +108,7 @@ namespace
             return dist;
         }
 
-        AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         amrex::Real
         operator()(const amrex::RealArray &p) const noexcept
         {
@@ -123,7 +123,7 @@ namespace
         size_t *m_jumps;
         size_t m_n_jumps;
 
-        AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
             amrex::Real
             intersects_outwards(amrex::Real r, amrex::Real z, int i) const noexcept
         {

@@ -72,11 +72,11 @@ Next, clone the WarpX repository and build the application:
       --target lib_2d --target lib_3d --target pyamrex_pip_wheel --target pip_wheel
    
 
-   cp ./build/_deps/fetchedpyamrex-build/amrex-whl/amrex-*-py3-none-any.whl \
-      ./build/warpx-whl/pywarpx-*-py3-none-any.whl \
-      build/lib/libamrex_2d.so \
-      build/lib/libamrex_3d.so \
-      ~/git/nova/projects/lumi/sif
+   cp ./build_lumi/_deps/fetchedpyamrex-build/amrex-whl/amrex-*-py3-none-any.whl \
+      ./build_lumi/warpx-whl/pywarpx-*-py3-none-any.whl \
+      build_lumi/lib/libamrex_2d.so \
+      build_lumi/lib/libamrex_3d.so \
+      Tools/machines/lumi-csc/sif/
    sudo singularity build -F warpx.sif warpx.def
 
 

@@ -1,15 +1,35 @@
 
 from pywarpx import picmi
+from pywarpx.callbacks import installcallback
+import time
+import os
+import sys
 
 from picmi_ext import ParticleExternalFileInjector, LoadAppliedRFField
 
 constants = picmi.constants
 
+
+import psutil
+import sys
+import os
+
+
+### Startup
+
+def dump_meminfo():
+    pid = psutil.Process().pid
+    print(f"{psutil.virtual_memory()=}")
+    print(f"psutil.Process({pid}).memory_full_info()={psutil.Process().memory_full_info()}")
+    sys.stdout.flush()
+
+dump_meminfo()
+
 #################################
 ####### GENERAL PARAMETERS ######
 #################################
 
-max_steps = 150000
+max_steps = 1500
 
 nx = 256
 ny = 256
@@ -72,12 +92,12 @@ B_ext = picmi.LoadAppliedField(
     load_E=False,
 )
 
-RF_ext = LoadAppliedRFField(
-    read_fields_from_path="RF.h5",
-    load_E=True,
-    load_B=False,
-)
-
+#RF_ext = LoadAppliedRFField(
+#    read_fields_from_path="RF.h5",
+#    load_E=True,
+#    load_B=False,
+#)
+#
 #################################
 ###### GRID AND SOLVER ##########
 #################################
@@ -103,7 +123,7 @@ solver = picmi.ElectromagneticSolver(grid=grid, method="Yee", cfl=0.9, divE_clea
 particle_diag = picmi.ParticleDiagnostic(
     name="diag1",
     warpx_format="openpmd",
-    period=500,
+    period=100,
     species=[protons, electrons],
     data_list=["ux", "uy", "uz", "x", "y", "z", "weighting"],
 )
@@ -111,7 +131,7 @@ field_diag = picmi.FieldDiagnostic(
     name="diag1",
     warpx_format="openpmd",
     grid=grid,
-    period=500,
+    period=100,
     data_list=["Bx", "By", "Bz", "Ex", "Ey", "Ez", "Jx", "Jy", "Jz", "rho_electrons", "rho_protons"],
 )
 
@@ -127,12 +147,12 @@ sim = picmi.Simulation(
     warpx_do_dynamic_scheduling=False,
     warpx_use_filter=use_filter,
     particle_shape=particle_shape,
-    warpx_amrex_the_arena_init_size=23*1024*1024*1024,
+    warpx_amrex_the_arena_init_size=5*1024*1024*1024,
     warpx_amrex_use_gpu_aware_mpi=True,
 )
 
 sim.add_applied_field(B_ext)
-sim.add_applied_field(RF_ext)
+#sim.add_applied_field(RF_ext)
 
 
 sim.add_species(protons, layout=None)
@@ -147,5 +167,11 @@ sim.add_diagnostic(particle_diag)
 ##### SIMULATION EXECUTION ######
 #################################
 
-sim.step(max_steps)
 
+
+installcallback('afterdiagnostics', dump_meminfo)
+installcallback('beforestep', lambda: dump_meminfo() if sim.extension.warpx.getistep(0) % 100 == 0 else None)
+installcallback('afterstep', lambda: dump_meminfo() if sim.extension.warpx.getistep(0) % 100 == 0 else None)
+dump_meminfo()
+sim.step(max_steps)
+dump_meminfo()

@@ -33,7 +33,7 @@ from: ubuntu:24.04
     ldconfig
 
     # Install wget
-    apt update -y && apt install -y wget 
+    apt update -y && apt install -y wget valgrind moreutils
 
     # Install miniconda
     export CONDA_PATH=/opt/miniconda3
@@ -71,5 +71,5 @@ from: ubuntu:24.04
     # This is a somewhat hacky way to get the GTL library to be loaded. It is
     # necessary for the GPU aware MPI to work, when compiling without access to
     # the Cray GTL library.
-    LD_PRELOAD="$GTL_LIB" $SIMULATION_CMD
+    LD_PRELOAD="$GTL_LIB" $SIMULATION_CMD | ts %.s
     
