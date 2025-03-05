@@ -68,6 +68,10 @@ void HybridPICModel::ReadParameters ()
     if (m_add_external_fields) {
         m_external_vector_potential = std::make_unique<ExternalVectorPotential>();
     }
+
+    // Static external b field
+    pp_hybrid.query("add_static_field", m_add_static_field);
+    pp_hybrid.query("external_b_field_path", m_external_b_field_path);
 }
 
 void HybridPICModel::AllocateLevelMFs (
@@ -145,6 +149,18 @@ void HybridPICModel::AllocateLevelMFs (
             Ex_nodal_flag, Ey_nodal_flag, Ez_nodal_flag,
             Bx_nodal_flag, By_nodal_flag, Bz_nodal_flag
         );
+    }
+
+    if (m_add_static_field) {
+        fields.alloc_init(FieldType::hybrid_B0_fp_external, Direction{0},
+            lev, amrex::convert(ba, Bx_nodal_flag),
+            dm, ncomps, ngEB, 0.0_rt);
+        fields.alloc_init(FieldType::hybrid_B0_fp_external, Direction{1},
+            lev, amrex::convert(ba, By_nodal_flag),
+            dm, ncomps, ngEB, 0.0_rt);
+        fields.alloc_init(FieldType::hybrid_B0_fp_external, Direction{2},
+            lev, amrex::convert(ba, Bz_nodal_flag),
+            dm, ncomps, ngEB, 0.0_rt);
     }
 
 #ifdef WARPX_DIM_RZ
@@ -249,6 +265,18 @@ void HybridPICModel::InitData (const ablastr::fields::MultiFabRegister& fields)
             m_J_external[2],
             lev, PatchType::fine,
             warpx.GetEBUpdateEFlag());
+    }
+
+    if (m_add_static_field) {
+        warpx.ReadExternalFieldFromFile(m_external_b_field_path,
+            warpx.m_fields.get(FieldType::hybrid_B0_fp_external, Direction{0}, 0),
+            "B", "x");
+        warpx.ReadExternalFieldFromFile(m_external_b_field_path,
+            warpx.m_fields.get(FieldType::hybrid_B0_fp_external, Direction{1}, 0),
+            "B", "y");
+        warpx.ReadExternalFieldFromFile(m_external_b_field_path,
+            warpx.m_fields.get(FieldType::hybrid_B0_fp_external, Direction{2}, 0),
+            "B", "z");
     }
 
     if (m_add_external_fields) {
