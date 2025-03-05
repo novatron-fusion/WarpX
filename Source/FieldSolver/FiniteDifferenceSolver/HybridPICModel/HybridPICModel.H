@@ -211,6 +211,9 @@ public:
     /** External E/B fields */
     bool m_add_external_fields = false;
     std::unique_ptr<ExternalVectorPotential> m_external_vector_potential;
+    
+    bool m_add_static_field = false;
+    std::string m_external_b_field_path = "0.0";
 
     /** Gpu Vector with index type of the Jx multifab */
     amrex::GpuArray<int, 3> Jx_IndexType;

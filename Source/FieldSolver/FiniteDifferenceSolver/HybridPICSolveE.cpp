@@ -852,13 +852,19 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
 
     const bool include_external_fields = hybrid_model->m_add_external_fields;
 
+    const bool include_static_field = hybrid_model->m_add_static_field;
+
     const bool holmstrom_vacuum_region = hybrid_model->m_holmstrom_vacuum_region;
 
     auto & warpx = WarpX::GetInstance();
-    ablastr::fields::VectorField Bfield_external, Efield_external;
+    ablastr::fields::VectorField B0field_external, Bfield_external, Efield_external;
     if (include_external_fields) {
         Bfield_external = warpx.m_fields.get_alldirs(FieldType::hybrid_B_fp_external, 0); // lev=0
         Efield_external = warpx.m_fields.get_alldirs(FieldType::hybrid_E_fp_external, 0); // lev=0
+    }
+
+    if (include_static_field) {
+        B0field_external = warpx.m_fields.get_alldirs(FieldType::hybrid_B0_fp_external, 0); // lev=0
     }
 
     // Index type required for interpolating fields from their respective
@@ -917,6 +923,12 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
         Array4<Real const> const& By = Bfield[1]->const_array(mfi);
         Array4<Real const> const& Bz = Bfield[2]->const_array(mfi);
 
+        Array4<Real> B0x_ext, B0y_ext, B0z_ext;
+        if (include_static_field) {
+            B0x_ext = B0field_external[0]->array(mfi);
+            B0y_ext = B0field_external[1]->array(mfi);
+            B0z_ext = B0field_external[2]->array(mfi);
+        }
         Array4<Real> Bx_ext, By_ext, Bz_ext;
         if (include_external_fields) {
             Bx_ext = Bfield_external[0]->array(mfi);
@@ -946,6 +958,11 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
                 Bx_interp += Interp(Bx_ext, Bx_stag, nodal, coarsen, i, j, k, 0);
                 By_interp += Interp(By_ext, By_stag, nodal, coarsen, i, j, k, 0);
                 Bz_interp += Interp(Bz_ext, Bz_stag, nodal, coarsen, i, j, k, 0);
+            }
+            if (include_static_field) {
+                Bx_interp += Interp(B0x_ext, Bx_stag, nodal, coarsen, i, j, k, 0);
+                By_interp += Interp(B0y_ext, By_stag, nodal, coarsen, i, j, k, 0);
+                Bz_interp += Interp(B0z_ext, Bz_stag, nodal, coarsen, i, j, k, 0);
             }
 
             // calculate enE = (J - Ji) x B

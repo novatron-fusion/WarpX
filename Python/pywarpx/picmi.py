@@ -1906,6 +1906,7 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         Jy_external_function=None,
         Jz_external_function=None,
         A_external=None,
+        B_field_path=None,
         **kw,
     ):
         self.grid = grid
@@ -1927,6 +1928,8 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         self.Jz_external_function = Jz_external_function
 
         self.A_external = A_external
+
+        self.B_field_path = B_field_path
 
         # Handle keyword arguments used in expressions
         self.user_defined_kw = {}
@@ -2023,6 +2026,11 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
                         field_dict["A_time_external_function"], self.mangle_dict
                     ),
                 )
+        
+        if self.B_field_path is not None:
+            pywarpx.hybridpicmodel.add_static_field = True
+            pywarpx.hybridpicmodel.external_b_field_path = self.B_field_path
+
 
 
 class ElectrostaticSolver(picmistandard.PICMI_ElectrostaticSolver):

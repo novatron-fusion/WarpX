@@ -40,6 +40,9 @@ void WarpX::HybridPICEvolveFields ()
     // Get flag to include external fields.
     const bool add_external_fields = m_hybrid_pic_model->m_add_external_fields;
 
+    // Get flag to include static b fields.
+    const bool add_static_field = m_hybrid_pic_model->m_add_static_field;
+
     // Handle field splitting for Hybrid field push
     if (add_external_fields) {
         // Get the external fields
@@ -58,6 +61,20 @@ void WarpX::HybridPICEvolveFields ()
             }
         }
     }
+    /*
+    if (add_static_field) {
+        // If using split fields, subtract the external field at the old time
+        for (int lev = 0; lev <= finest_level; ++lev) {
+            for (int idim = 0; idim < 3; ++idim) {
+                MultiFab::Subtract(
+                    *m_fields.get(FieldType::Bfield_fp, Direction{idim}, lev),
+                    *m_fields.get(FieldType::hybrid_B_fp_external, Direction{idim}, lev),
+                    0, 0, 1,
+                    m_fields.get(FieldType::Bfield_fp, Direction{idim}, lev)->nGrowVect());
+            }
+        }
+    }
+    */
 
     // The particles have now been pushed to their t_{n+1} positions.
     // Perform charge deposition in component 0 of rho_fp at t_{n+1}.
@@ -229,6 +246,20 @@ void WarpX::HybridPICEvolveFields ()
             }
         }
     }
+    /*
+    if (add_static_field) {
+        // If using split fields, add the external field at the new time
+        for (int lev = 0; lev <= finest_level; ++lev) {
+            for (int idim = 0; idim < 3; ++idim) {
+                MultiFab::Add(
+                    *m_fields.get(FieldType::Bfield_fp, Direction{idim}, lev),
+                    *m_fields.get(FieldType::hybrid_B_fp_external, Direction{idim}, lev),
+                    0, 0, 1,
+                    m_fields.get(FieldType::Bfield_fp, Direction{idim}, lev)->nGrowVect());
+            }
+        }
+    }
+    */
 
     // Copy the rho^{n+1} values to rho_fp_temp and the J_i^{n+1/2} values to
     // current_fp_temp since at the next step those values will be needed as
