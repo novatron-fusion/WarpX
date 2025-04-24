@@ -18,6 +18,8 @@
 #include "Particles/MultiParticleContainer.H"
 #include "ExternalVectorPotential.H"
 #include "WarpX.H"
+//#include "Utils/Algorithms/LinearInterpolation.H"
+#include <ablastr/math/LinearInterpolation.H>
 
 using namespace amrex;
 using warpx::fields::FieldType;
@@ -41,9 +43,20 @@ void HybridPICModel::ReadParameters ()
     // and exponent to be given. These values will be used to calculate the
     // electron pressure according to p = n0 * Te * (n/n0)^gamma
     utils::parser::queryWithParser(pp_hybrid, "gamma", m_gamma);
-    if (!utils::parser::queryWithParser(pp_hybrid, "elec_temp", m_elec_temp)) {
-        Abort("hybrid_pic_model.elec_temp must be specified when using the hybrid solver");
+
+    if (!pp_hybrid.query("electron_temperature_init_style", m_elec_temp_style)) {
+        Abort("hybrid_pic_model.electron_temperature_init_style must be specified "
+              "when using the hybrid solver");
     }
+
+    if (m_elec_temp_style == "parse_expression") {
+        pp_hybrid.get("elec_temp", m_elec_temp_expression);
+    }
+
+    if (m_elec_temp_style == "read_from_file") {
+        pp_hybrid.get("read_Te_field_from_path", m_elec_temp_field_path);
+    }
+
     const bool n0_ref_given = utils::parser::queryWithParser(pp_hybrid, "n0_ref", m_n0_ref);
     if (m_gamma != 1.0 && !n0_ref_given) {
         Abort("hybrid_pic_model.n0_ref should be specified if hybrid_pic_model.gamma != 1");
@@ -55,7 +68,7 @@ void HybridPICModel::ReadParameters ()
     utils::parser::queryWithParser(pp_hybrid, "n_floor", m_n_floor);
 
     // convert electron temperature from eV to J
-    m_elec_temp *= PhysConst::q_e;
+    // m_elec_temp *= PhysConst::q_e;
 
     // external currents
     pp_hybrid.query("Jx_external_grid_function(x,y,z,t)", m_Jx_ext_grid_function);
@@ -102,6 +115,11 @@ void HybridPICModel::AllocateLevelMFs (
     // The "hybrid_rho_fp_temp" multifab is used to store the ion charge density
     // interpolated or extrapolated to appropriate timesteps.
     fields.alloc_init(FieldType::hybrid_rho_fp_temp,
+        lev, amrex::convert(ba, rho_nodal_flag),
+        dm, ncomps, ngRho, 0.0_rt);
+
+    // The "hybrid_electron_temperature_fp" multifab stores the electron termperature
+    fields.alloc_init(FieldType::hybrid_electron_temperature_fp,
         lev, amrex::convert(ba, rho_nodal_flag),
         dm, ncomps, ngRho, 0.0_rt);
 
@@ -172,6 +190,10 @@ void HybridPICModel::AllocateLevelMFs (
 
 void HybridPICModel::InitData (const ablastr::fields::MultiFabRegister& fields)
 {
+    m_elec_temp_parser = std::make_unique<amrex::Parser>(
+        utils::parser::makeParser(m_elec_temp_expression, {"x","y","z"}));
+    m_elec_temp = m_elec_temp_parser->compile<3>();
+
     m_resistivity_parser = std::make_unique<amrex::Parser>(
         utils::parser::makeParser(m_eta_expression, {"rho","J"}));
     m_eta = m_resistivity_parser->compile<2>();
@@ -265,6 +287,20 @@ void HybridPICModel::InitData (const ablastr::fields::MultiFabRegister& fields)
             m_J_external[2],
             lev, PatchType::fine,
             warpx.GetEBUpdateEFlag());
+
+        if (m_elec_temp_style == "parse_expression") {
+            ComputeExternalScalarFieldOnGridUsingParser(
+                FieldType::hybrid_electron_temperature_fp,
+                m_elec_temp,
+                lev, PatchType::fine
+            );
+        } else if (m_elec_temp_style == "read_from_file") {
+            amrex::Print() << "Reading electron temperature from file: " << m_elec_temp_field_path << "\n";
+            warpx.ReadExternalFieldFromFile(m_elec_temp_field_path,
+                warpx.m_fields.get(FieldType::hybrid_electron_temperature_fp, lev),
+                "temperature", "value");
+            amrex::Print() << "Electron temperature initialization from file completed.\n";
+        }
     }
 
     if (m_add_static_field) {
@@ -339,6 +375,63 @@ void HybridPICModel::CalculatePlasmaCurrent (
         current_fp_plasma[i]->minus(*current_fp_external[i], 0, 1, 1);
     }
 
+}
+
+void HybridPICModel::ComputeExternalScalarFieldOnGridUsingParser (
+    warpx::fields::FieldType field,
+    amrex::ParserExecutor<3> const& scalar_parser,
+    int lev, PatchType patch_type)
+{
+
+    auto& warpx = WarpX::GetInstance();
+    const amrex::Geometry& geom = warpx.Geom(lev);
+    auto dx_lev = geom.CellSizeArray();
+    const RealBox& real_box = geom.ProbDomain();
+
+    amrex::IntVect refratio = (lev > 0 ) ? warpx.RefRatio(lev-1) : amrex::IntVect(1);
+    if (patch_type == PatchType::coarse) {
+        for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+            dx_lev[idim] = dx_lev[idim] * refratio[idim];
+        }
+    }
+
+    ablastr::fields::ScalarField mf = warpx.m_fields.get(field, lev);
+
+    const amrex::IntVect nodal_flag = mf->ixType().toIntVect();
+
+    // Loop over boxes
+    for (amrex::MFIter mfi(*mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        auto const& scalar_arr = mf->array(mfi);
+
+        // Start ParallelFor
+        amrex::ParallelFor(bx,
+            [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                // Shift required in the x-, y-, or z- position
+                // depending on the index type of the multifab
+#if defined(WARPX_DIM_1D_Z)
+                const amrex::Real x = 0._rt;
+                const amrex::Real y = 0._rt;
+                const amrex::Real fac_z = (1._rt - nodal_flag[0]) * dx_lev[0] * 0.5_rt;
+                const amrex::Real z = i*dx_lev[0] + real_box.lo(0) + fac_z;
+#elif defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
+                const amrex::Real fac_x = (1._rt - nodal_flag[0]) * dx_lev[0] * 0.5_rt;
+                const amrex::Real x = i*dx_lev[0] + real_box.lo(0) + fac_x;
+                const amrex::Real y = 0._rt;
+                const amrex::Real fac_z = (1._rt - nodal_flag[1]) * dx_lev[1] * 0.5_rt;
+                const amrex::Real z = j*dx_lev[1] + real_box.lo(1) + fac_z;
+#else
+                const amrex::Real fac_x = (1._rt - nodal_flag[0]) * dx_lev[0] * 0.5_rt;
+                const amrex::Real x = i*dx_lev[0] + real_box.lo(0) + fac_x;
+                const amrex::Real fac_y = (1._rt - nodal_flag[1]) * dx_lev[1] * 0.5_rt;
+                const amrex::Real y = j*dx_lev[1] + real_box.lo(1) + fac_y;
+                const amrex::Real fac_z = (1._rt - nodal_flag[2]) * dx_lev[2] * 0.5_rt;
+                const amrex::Real z = k*dx_lev[2] + real_box.lo(2) + fac_z;
+#endif
+                // Assign the value to the scalar field array
+                scalar_arr(i, j, k) = scalar_parser(x, y, z) * PhysConst::q_e;
+            });
+    }
 }
 
 void HybridPICModel::HybridPICSolveE (
@@ -420,13 +513,17 @@ void HybridPICModel::CalculateElectronPressure(const int lev) const
 
     auto& warpx = WarpX::GetInstance();
     ablastr::fields::ScalarField electron_pressure_fp = warpx.m_fields.get(FieldType::hybrid_electron_pressure_fp, lev);
+    ablastr::fields::ScalarField electron_temperature_fp = warpx.m_fields.get(FieldType::hybrid_electron_temperature_fp, lev);
     ablastr::fields::ScalarField rho_fp = warpx.m_fields.get(FieldType::rho_fp, lev);
 
     // Calculate the electron pressure using rho^{n+1}.
+
     FillElectronPressureMF(
         *electron_pressure_fp,
+        *electron_temperature_fp,
         *rho_fp
     );
+
     warpx.ApplyElectronPressureBoundary(lev, PatchType::fine);
     ablastr::utils::communication::FillBoundary(
         *electron_pressure_fp,
@@ -437,11 +534,11 @@ void HybridPICModel::CalculateElectronPressure(const int lev) const
 
 void HybridPICModel::FillElectronPressureMF (
     amrex::MultiFab& Pe_field,
+    amrex::MultiFab const& Te_field,
     amrex::MultiFab const& rho_field
 ) const
 {
     const auto n0_ref = m_n0_ref;
-    const auto elec_temp = m_elec_temp;
     const auto gamma = m_gamma;
 
     // Loop through the grids, and over the tiles within each grid
@@ -452,6 +549,7 @@ void HybridPICModel::FillElectronPressureMF (
     {
         // Extract field data for this grid/tile
         Array4<Real const> const& rho = rho_field.const_array(mfi);
+        Array4<Real const> const& Te = Te_field.const_array(mfi);
         Array4<Real> const& Pe = Pe_field.array(mfi);
 
         // Extract tileboxes for which to loop
@@ -459,7 +557,7 @@ void HybridPICModel::FillElectronPressureMF (
 
         ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k) {
             Pe(i, j, k) = ElectronPressure::get_pressure(
-                n0_ref, elec_temp, gamma, rho(i, j, k)
+                n0_ref, Te(i, j, k), gamma, rho(i, j, k)
             );
         });
     }
