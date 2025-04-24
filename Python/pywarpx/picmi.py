@@ -1895,6 +1895,8 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         self,
         grid,
         Te=None,
+        Te_style=None,
+        Te_file_path=None,
         n0=None,
         gamma=None,
         n_floor=None,
@@ -1913,6 +1915,9 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         self.method = "hybrid"
 
         self.Te = Te
+        self.Te_style = Te_style
+        self.Te_file_path = Te_file_path
+
         self.n0 = n0
         self.gamma = gamma
         self.n_floor = n_floor
@@ -1934,7 +1939,7 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         # Handle keyword arguments used in expressions
         self.user_defined_kw = {}
         for k in list(kw.keys()):
-            self.user_defined_kw[k] = kw[k]
+            self.user_defined_kw[k] = kw[k] 
             del kw[k]
 
         self.handle_init(kw)
@@ -1950,6 +1955,9 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         pywarpx.algo.maxwell_solver = self.method
 
         pywarpx.hybridpicmodel.elec_temp = self.Te
+        pywarpx.hybridpicmodel.electron_temperature_init_style = self.Te_style
+        pywarpx.hybridpicmodel.read_Te_field_from_path = self.Te_file_path
+
         pywarpx.hybridpicmodel.n0_ref = self.n0
         pywarpx.hybridpicmodel.gamma = self.gamma
         pywarpx.hybridpicmodel.n_floor = self.n_floor
