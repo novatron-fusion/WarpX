@@ -15,6 +15,7 @@
 #include "Fluids/MultiFluidContainer.H"
 #include "Fluids/WarpXFluidContainer.H"
 #include "Utils/WarpXProfilerWrapper.H"
+#include "Python/callbacks.H"
 #include "WarpX.H"
 
 #include <ablastr/fields/MultiFabRegister.H>
