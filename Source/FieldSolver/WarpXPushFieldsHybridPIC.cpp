@@ -15,6 +15,7 @@
 #include "Fluids/MultiFluidContainer.H"
 #include "Fluids/WarpXFluidContainer.H"
 #include "Utils/WarpXProfilerWrapper.H"
+#include "Python/callbacks.H"
 #include "WarpX.H"
 
 #include <ablastr/fields/MultiFabRegister.H>
@@ -92,6 +93,8 @@ void WarpX::HybridPICEvolveFields ()
             *m_fields.get(FieldType::current_fp, Direction{2}, lev),
             lev);
     }
+
+    ExecutePythonCallback("afterdeposition");
 
     // Synchronize J and rho:
     // filter (if used), exchange guard cells, interpolate across MR levels
