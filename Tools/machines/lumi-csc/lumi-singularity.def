@@ -1,0 +1,77 @@
+bootstrap: docker
+from: ubuntu:24.04
+
+# Use as
+#
+# singularity run --rocm --no-mount hostfs --bind /scratch/$proj/run_sim:/opt/run_sim lumi-warpx.sif
+#
+# SIMULATION_DIR (defaults to /opt/run_sim) is the directory where the
+# simulation is run. The simulation script is expected to be in
+# $SIMULATION_DIR/run_sim.py. SIMULATION_CMD is set to this path, but can also
+# give additional arguments to be passed to python. 
+
+%environment
+    export SIMULATION_PATH=/opt/run_sim
+    export SIMULATION_CMD="$SIMULATION_PATH/run_sim.py"
+    export PYTHONDONTWRITEBYTECODE=1
+
+%files
+    # Copy the very few necessary libs for ROCm. Installing the packages brings loads of unwanted stuff, so 
+    # we do it like this instead.
+    build_lumi/hip/libamdhip64.so.6.?.* /usr/local/lib
+    build_lumi/hip/libhiprtc.so.6.?.* /usr/local/lib
+    build_lumi/hip/libhiprtc-builtins.so.6.?.* /usr/local/lib
+    build_lumi/hip/librocprofiler-register.so.0.?.* /usr/local/lib
+    build_lumi/hip/amdgpu.ids /usr/share/libdrm/amdgpu.ids
+    build_lumi/hip/amdgpu.ids /opt/amdgpu/share/libdrm/amdgpu.ids
+
+    # The WarpX wheel, the AMReX wheel, and the AMReX libraries from that build.
+    ./build_lumi/_deps/fetchedpyamrex-build/amrex-whl/amrex-*-py3-none-any.whl ./
+    ./build_lumi/warpx-whl/pywarpx-*-py3-none-any.whl ./
+    ./build_lumi/lib/libamrex_3d.so /usr/local/lib
+    ./build_lumi/bin/warpx.3d* /usr/local/bin
+    ./build_lumi/whl_extras/* ./whl_extras/
+
+%post
+    # Start by doing an ldconfig to create links and cache to the copy-installed libraries above.
+    ldconfig
+
+    # Install wget
+    apt update -y && apt install -y wget valgrind moreutils libllvm17t64 libstdc++-13-dev
+
+    # Install miniconda
+    export CONDA_PATH=/opt/miniconda3
+    export WITH_CONDA=". $CONDA_PATH/bin/activate"
+    echo "export WITH_CONDA=\"${WITH_CONDA}\"" >> $SINGULARITY_ENVIRONMENT
+
+    wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+    bash ./Miniforge3-Linux-x86_64.sh -b -p $CONDA_PATH
+    $WITH_CONDA
+
+    # Install WarpX
+    conda install -y blaspp "python>=3.12" "heffte=*=mpi_mpich*" lapackpp "openpmd-api=*=mpi_mpich*" openpmd-viewer python numpy pandas scipy yt "fftw=*=mpi_mpich*" matplotlib mamba mpich==4.2.3=h239ebd3_101 mpi4py pip psutil libstdcxx-devel_linux-64
+    pip install ./amrex-*-py3-none-any.whl ./pywarpx-*-py3-none-any.whl ./cupy-*.whl ./fastrlock-*.whl ./whl_extras/*.whl
+
+    # Remove any existing MPI libraries, as we will bind the correct ones from the host.
+    rm -f /opt/miniconda3/lib/libmpi.so*
+    rm -f /opt/miniconda3/lib/libmpicxx.so*
+    rm -f /opt/miniconda3/lib/libmpifort.so*
+    rm -f /opt/miniconda3/lib/libmpichcxx.so*
+    rm -f /opt/miniconda3/lib/libmpich.so*
+    
+    # Clean up the installation packages
+    rm ./*.whl
+    rm ./Miniforge3-Linux-x86_64.sh
+    rm -rf /var/lib/apt/lists/*
+    pip cache purge
+    conda clean --all -y
+
+
+%runscript
+    $WITH_CONDA
+    cd "$SIMULATION_PATH"
+    # This is a somewhat hacky way to get the GTL library to be loaded. It is
+    # necessary for the GPU aware MPI to work, when compiling without access to
+    # the Cray GTL library.
+    LD_PRELOAD="$GTL_LIB" $SIMULATION_CMD | ts %.s
+    

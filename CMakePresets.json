@@ -1,0 +1,12 @@
+{
+    "version": 9,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 23,
+        "patch": 0
+    },
+    "include": [
+        "cmake/CommonCMakePresetTargets.json",
+        "Tools/machines/lumi-csc/CMakePresets.json"
+    ]
+}
