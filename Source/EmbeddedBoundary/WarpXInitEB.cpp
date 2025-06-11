@@ -110,8 +110,8 @@ WarpX::InitEB ()
         parse_multipolygon(wkt_multipolygon, r_vec, z_vec, jump_vec);
 
 #ifdef AMREX_USE_GPU
-        amrex::Gpu::DeviceVector<amrex::Real> r_dvec(r_vec_cpu.size()), z_dvec(z_vec_cpu.size());
-        amrex::Gpu::DeviceVector<size_t> jump_dvec(jump_vec_cpu.size());
+        amrex::Gpu::DeviceVector<amrex::Real> r_dvec(r_vec.size()), z_dvec(z_vec.size());
+        amrex::Gpu::DeviceVector<size_t> jump_dvec(jump_vec.size());
 
         // Copy data from host to device
         amrex::Gpu::copy(amrex::Gpu::hostToDevice, r_vec.begin(), r_vec.end(), r_dvec.begin());
