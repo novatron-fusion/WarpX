@@ -66,9 +66,11 @@ namespace
     {
     public:
         PolygonXYIF(amrex::Gpu::DeviceVector<amrex::Real> &r, amrex::Gpu::DeviceVector<amrex::Real> &z, amrex::Gpu::DeviceVector<size_t> &jumps)
-            : m_r(r),
-              m_z(z),
-              m_jumps(jumps)
+            : m_r(r.data()),
+              m_z(z.data()),
+              m_jumps(jumps.data()),
+              m_size(r.size()),
+              m_jumps_size(jumps.size())
         {
             assert(r.size() == z.size());
         }
@@ -84,8 +86,8 @@ namespace
         {
             amrex::Real dist = 1;
             size_t i_jump = 0;
-            for (size_t i = 0; i < m_r.size() - 1; i++) {
-                if(i_jump < m_jumps.size() && m_jumps[i_jump] == i+1) {
+            for (size_t i = 0; i < m_size - 1; i++) {
+                if(i_jump < m_jumps_size && m_jumps[i_jump] == i+1) {
                     i_jump++;
                     continue;
                 }
@@ -100,9 +102,11 @@ namespace
             return this->operator()(AMREX_D_DECL(p[0], p[1], p[2]));
         }
     protected:
-        amrex::Gpu::DeviceVector<amrex::Real> m_r;
-        amrex::Gpu::DeviceVector<amrex::Real> m_z;
-        amrex::Gpu::DeviceVector<size_t> m_jumps;
+        amrex::Real const* m_r;
+        amrex::Real const* m_z;
+        size_t const* m_jumps;
+        size_t m_size;
+        size_t m_jumps_size;
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
             amrex::Real
             intersects_outwards(amrex::Real r, amrex::Real z, int i) const noexcept
