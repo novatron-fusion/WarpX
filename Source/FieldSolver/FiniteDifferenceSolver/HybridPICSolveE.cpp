@@ -1156,6 +1156,13 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
         Array4<Real> const& By = Bfield[1]->array(mfi);
         Array4<Real> const& Bz = Bfield[2]->array(mfi);
 
+        Array4<Real> B0x_ext, B0y_ext, B0z_ext;
+        if (include_static_field) {
+            B0x_ext = B0field_external[0]->array(mfi);
+            B0y_ext = B0field_external[1]->array(mfi);
+            B0z_ext = B0field_external[2]->array(mfi);
+        }
+
         // Extract structures indicating where the fields
         // should be updated, given the position of the embedded boundaries
         amrex::Array4<int> update_Ex_arr, update_Ey_arr, update_Ez_arr;
@@ -1232,9 +1239,14 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
                         // Interpolate B field to appropriate staggering to match E field
                         Real btot_val = 0._rt;
                         if (hyper_resistivity_has_B_dependence) {
-                            const Real bx_val = Interp(Bx, Bx_stag, Ex_stag, coarsen, i, j, k, 0);
-                            const Real by_val = Interp(By, By_stag, Ex_stag, coarsen, i, j, k, 0);
-                            const Real bz_val = Interp(Bz, Bz_stag, Ex_stag, coarsen, i, j, k, 0);
+                            Real bx_val = Interp(Bx, Bx_stag, Ex_stag, coarsen, i, j, k, 0);
+                            Real by_val = Interp(By, By_stag, Ex_stag, coarsen, i, j, k, 0);
+                            Real bz_val = Interp(Bz, Bz_stag, Ex_stag, coarsen, i, j, k, 0);
+                            if (include_static_field) {
+                                bx_val += Interp(B0x_ext, Bx_stag, Ex_stag, coarsen, i, j, k, 0);
+                                by_val += Interp(B0y_ext, By_stag, Ex_stag, coarsen, i, j, k, 0);
+                                bz_val += Interp(B0z_ext, Bz_stag, Ex_stag, coarsen, i, j, k, 0);
+                            }
                             btot_val = std::sqrt(bx_val*bx_val + by_val*by_val + bz_val*bz_val);
                         }
 
@@ -1296,9 +1308,14 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
                         // Interpolate B field to appropriate staggering to match E field
                         Real btot_val = 0._rt;
                         if (hyper_resistivity_has_B_dependence) {
-                            const Real bx_val = Interp(Bx, Bx_stag, Ey_stag, coarsen, i, j, k, 0);
-                            const Real by_val = Interp(By, By_stag, Ey_stag, coarsen, i, j, k, 0);
-                            const Real bz_val = Interp(Bz, Bz_stag, Ey_stag, coarsen, i, j, k, 0);
+                            Real bx_val = Interp(Bx, Bx_stag, Ey_stag, coarsen, i, j, k, 0);
+                            Real by_val = Interp(By, By_stag, Ey_stag, coarsen, i, j, k, 0);
+                            Real bz_val = Interp(Bz, Bz_stag, Ey_stag, coarsen, i, j, k, 0);
+                            if (include_static_field) {
+                                bx_val += Interp(B0x_ext, Bx_stag, Ey_stag, coarsen, i, j, k, 0);
+                                by_val += Interp(B0y_ext, By_stag, Ey_stag, coarsen, i, j, k, 0);
+                                bz_val += Interp(B0z_ext, Bz_stag, Ey_stag, coarsen, i, j, k, 0);
+                            }
                             btot_val = std::sqrt(bx_val*bx_val + by_val*by_val + bz_val*bz_val);
                         }
 
@@ -1360,9 +1377,14 @@ void FiniteDifferenceSolver::HybridPICSolveECartesian (
                         // Interpolate B field to appropriate staggering to match E field
                         Real btot_val = 0._rt;
                         if (hyper_resistivity_has_B_dependence) {
-                            const Real bx_val = Interp(Bx, Bx_stag, Ez_stag, coarsen, i, j, k, 0);
-                            const Real by_val = Interp(By, By_stag, Ez_stag, coarsen, i, j, k, 0);
-                            const Real bz_val = Interp(Bz, Bz_stag, Ez_stag, coarsen, i, j, k, 0);
+                            Real bx_val = Interp(Bx, Bx_stag, Ez_stag, coarsen, i, j, k, 0);
+                            Real by_val = Interp(By, By_stag, Ez_stag, coarsen, i, j, k, 0);
+                            Real bz_val = Interp(Bz, Bz_stag, Ez_stag, coarsen, i, j, k, 0);
+                            if (include_static_field) {
+                                bx_val += Interp(B0x_ext, Bx_stag, Ez_stag, coarsen, i, j, k, 0);
+                                by_val += Interp(B0y_ext, By_stag, Ez_stag, coarsen, i, j, k, 0);
+                                bz_val += Interp(B0z_ext, Bz_stag, Ez_stag, coarsen, i, j, k, 0);
+                            }
                             btot_val = std::sqrt(bx_val*bx_val + by_val*by_val + bz_val*bz_val);
                         }
 
