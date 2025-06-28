@@ -109,7 +109,7 @@ namespace
         size_t m_jumps_size;
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
             amrex::Real
-            intersects_outwards(amrex::Real r, amrex::Real z, int i) const noexcept
+            intersects_outwards(amrex::Real r, amrex::Real z, size_t i) const noexcept
         {
             // Determine if the point is radially inside the line segment from curve[lineseg_i] to curve[lineseg_i+1].
             if (m_r[i] <= r && m_r[i + 1] <= r)                                // point is completely outside the linesegment
