@@ -20,46 +20,71 @@ typedef boost::geometry::model::multi_polygon<polygon_t> mpolygon_t;
 namespace
 {
     // For all implicit functions, >0: body; =0: boundary; <0: fluid
-    inline void add_jump(amrex::Vector<amrex::Real> &r, amrex::Vector<amrex::Real> &z, amrex::Vector<size_t> &jumps)
+    inline void add_jump(amrex::Gpu::DeviceVector<amrex::Real> &r, amrex::Gpu::DeviceVector<amrex::Real> &z, amrex::Gpu::DeviceVector<size_t> &jumps)
     {
-        if (jumps.size() > 0 && jumps[jumps.size() - 1] == r.size() - 1)
+        if (jumps.size() > 0 && jumps[jumps.size() - 1] == static_cast<size_t>(r.size() - 1))
         {
             r.pop_back();
             z.pop_back();
         }
         else
         {
-            jumps.push_back(r.size());
+            jumps.push_back(r.size()); 
         }
     }
 
     template <typename T>
-    inline void expand_ring(const T &polygon, amrex::Vector<amrex::Real> &r, amrex::Vector<amrex::Real> &z, amrex::Vector<size_t> &jumps)
+    inline void expand_ring(const T &polygon, amrex::Gpu::DeviceVector<amrex::Real> &r, amrex::Gpu::DeviceVector<amrex::Real> &z, amrex::Gpu::DeviceVector<size_t> &jumps)
     {
         for (auto p : polygon)
         {
-            if ((p.x() == 0) && (r.size() > 0) && (r[r.size() - 1] == 0))
+            // If we are at the z axis we want to remove all those points, otherwise they
+            // will duplicate when we rotate the polygon around the z axis.
+            if ((p.x() == 0) && (r.size() > 0) && (r[r.size() - 1] == 0)){ 
+                std::cout << "p.x(): " << p.x() << ", r.size(): " << r.size() << ", r[r.size() - 1]: " << r[r.size() - 1] << std::endl;
+                std::cout << "Adding jump inside loop" << std::endl;
                 add_jump(r, z, jumps);
+                std::cout << "After adding jump inside loop" << std::endl;
+                for (size_t idx = 0; idx < jumps.size(); idx++) {
+                    std::cout << "jumps[" << idx << "]: " << jumps[idx] << std::endl;
+                }
+            }
+            //std::cout << "Adding point: (" << p.x() << ", " << p.y() << ")" << std::endl;
             r.push_back(p.x());
             z.push_back(p.y());
         }
-        add_jump(r, z, jumps);
+
     }
 
-    void expand_multipolygon(const mpolygon_t &multipolygon, amrex::Vector<amrex::Real> &r, amrex::Vector<amrex::Real> &z, amrex::Vector<size_t> &jumps)
+    void expand_multipolygon(const mpolygon_t &multipolygon, amrex::Gpu::DeviceVector<amrex::Real> &r, amrex::Gpu::DeviceVector<amrex::Real> &z, amrex::Gpu::DeviceVector<size_t> &jumps)
     {
+        bool first = true;
         for (auto polygon : multipolygon)
         {
+            std::cout << "Expanding polygon with " << polygon.outer().size() << " outer points and " << polygon.inners().size() << " inner rings." << std::endl;
+            if (!first) {
+                add_jump(r, z, jumps); // Add a jump before the next polygon
+            }
             expand_ring(polygon.outer(), r, z, jumps);
-            for (auto ring : polygon.inners())
+
+            for (auto ring : polygon.inners()){
+                add_jump(r, z, jumps); 
                 expand_ring(ring, r, z, jumps);
+            }
+            first = false;       
         }
     }
-    void parse_multipolygon(const std::string &wkt, amrex::Vector<amrex::Real> &r, amrex::Vector<amrex::Real> &z, amrex::Vector<size_t> &jumps) {
+    void parse_multipolygon(const std::string &wkt, amrex::Gpu::DeviceVector<amrex::Real> &r, amrex::Gpu::DeviceVector<amrex::Real> &z, amrex::Gpu::DeviceVector<size_t> &jumps) {
         mpolygon_t multipolygon;
         boost::geometry::read_wkt(wkt, multipolygon);
 
         expand_multipolygon(multipolygon, r, z, jumps);
+        std::cout << "Parsed multipolygon with " << r.size() << " points." << std::endl;
+        std::cout << "Jumps: ";
+        for (size_t idx = 0; idx < jumps.size(); idx++) {
+            std::cout << jumps[idx] << " ";
+        }
+        std::cout << std::endl;
     }
     class PolygonXYIF
         : public amrex::GPUable
@@ -92,6 +117,9 @@ namespace
                     continue;
                 }
                 dist *= intersects_outwards(x, y, i);
+            }
+            if (std::abs(y) < 1.5 && std::abs(x) < 1) {
+                std::cout << "PolygonXYIF::operator() called with point (" << x << ", " << y << "), dist: " << dist << '\n';
             }
             return dist;
         }

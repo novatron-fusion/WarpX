@@ -105,9 +105,17 @@ WarpX::InitEB ()
         std::ifstream wkt_multipolygon_file(wkt_file);
         std::string wkt_multipolygon(std::istreambuf_iterator<char>{wkt_multipolygon_file}, {});
         
-        amrex::Vector<amrex::Real> r_vec, z_vec;
-        amrex::Vector<size_t> jump_vec;
+        amrex::Gpu::DeviceVector<amrex::Real> r_vec, z_vec;
+        amrex::Gpu::DeviceVector<size_t> jump_vec;
         parse_multipolygon(wkt_multipolygon, r_vec, z_vec, jump_vec);
+        std::cout << "WarpXinitEb.cpp::Parsed multipolygon with " << r_vec.size() << " points." << std::endl;
+        std::cout << "Jumps: ";
+        for (size_t idx = 0; idx < jump_vec.size(); idx++) {
+            std::cout << jump_vec[idx] << " ";
+        }
+        std::cout << std::endl;
+    
+    
 
 #ifdef AMREX_USE_GPU
         amrex::Gpu::DeviceVector<amrex::Real> r_dvec(r_vec.size()), z_dvec(z_vec.size());
@@ -119,7 +127,7 @@ WarpX::InitEB ()
         amrex::Gpu::copy(amrex::Gpu::hostToDevice, jump_vec.begin(), jump_vec.end(), jump_dvec.begin());
 
         amrex::Gpu::synchronize();
-
+        std::cout << "WarpXinitEb.cpp::Copied multipolygon data to device." << std::endl;
         PolygonXYIF polygonXY(r_dvec, z_dvec, jump_dvec);
 #else
         PolygonXYIF polygonXY(r_vec, z_vec, jump_vec);
