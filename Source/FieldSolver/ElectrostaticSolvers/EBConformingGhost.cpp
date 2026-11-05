@@ -31,8 +31,10 @@ using namespace amrex::literals;
 
 namespace
 {
+#if defined(AMREX_USE_EB) && (AMREX_SPACEDIM > 1)
     // level set value of nodes whose geometry is not available
     constexpr amrex::Real unavailable = amrex::Real(1.e30);
+#endif
 
     template <typename T>
     amrex::Gpu::DeviceVector<T> ToDevice (std::vector<T> const& h)
