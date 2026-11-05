@@ -100,6 +100,13 @@ struct MLMGOptions
 
     /** Prefix of the input file namespace from which AMReX reads HYPRE options */
     std::string hypre_options_namespace = "hypre";
+
+    /** With an embedded boundary, use the symmetric EB stencil of
+     *  amrex::MLEBNodeFDLaplacian (setEBSymmetric) instead of Shortley-Weller,
+     *  so that the potential at b of a charge at a equals the potential at a
+     *  of the same charge at b also next to the EB.
+     */
+    bool eb_symmetric = false;
 };
 
 /** Translate the name of a bottom solver to the corresponding AMReX enum value

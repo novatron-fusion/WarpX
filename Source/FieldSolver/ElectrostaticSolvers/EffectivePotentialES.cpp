@@ -69,11 +69,18 @@ void EffectivePotentialES::ComputeSpaceChargeField (
 
     // perform phi calculation
     int const verbosity = verbose_step ? m_mlmg_options.verbosity : 0;
+    bool const conforming = EB::enabled()
+        && GetEBEfieldMethod() == EBEfieldMethod::Conforming;
+    if (conforming) { foldEBCharge(rho_fp, 1.0_rt); }
     computePhi(rho_fp, phi_fp, Efield_fp, verbosity);
+    if (conforming) { foldEBCharge(rho_fp, -1.0_rt); }
 
     // Compute the electric field. Note that if an EB is used the electric
     // field will be calculated in the computePhi call.
-    if (!EB::enabled()) {
+    if (conforming) {
+        const std::array<Real, 3> beta = {0._rt};
+        computeEConforming( Efield_fp, phi_fp, beta );
+    } else if (!EB::enabled() || UseCenteredEBEfield()) {
         const std::array<Real, 3> beta = {0._rt};
         computeE( Efield_fp, phi_fp, beta );
     }
@@ -263,7 +270,7 @@ void EffectivePotentialES::computePhi (
 #endif
             );
         }
-        post_phi_calculation = EBCalcEfromPhiPerLevel(e_field);
+        if (!UseCenteredEBEfield()) { post_phi_calculation = EBCalcEfromPhiPerLevel(e_field); }
 
 #ifdef AMREX_USE_EB
         amrex::Vector<

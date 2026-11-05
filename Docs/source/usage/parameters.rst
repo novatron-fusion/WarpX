@@ -1252,6 +1252,64 @@ additionally define the electric potential at the embedded boundary with an anal
     inside the embedded boundary. For this reason, it is important to define
     this function in such a way that it is constant inside the embedded boundary.
 
+.. pp:param:: warpx.eb_poisson_stencil
+    :type: ``string``
+    :default: ``shortley_weller``
+    :optional:
+
+    With electrostatic solvers and an embedded boundary, the stencil of the Poisson operator at the nodes next
+    to the EB: ``shortley_weller`` or ``symmetric``. Shortley-Weller weights the links of such a node by
+    :math:`2/(h^- + h^+)` per direction (:math:`h` the open length of the edge in cells), so that the
+    potential at a point :math:`b` of a charge on the node next to the EB is :math:`(1+h)/2` times the
+    potential at that node of the same charge at :math:`b`. Charges near the wall then act on the others with
+    forces that differ from those they feel, and the energy of a plasma is not conserved: two charged particles
+    of which one is reflected at the wall changed their total energy by :math:`1-2\cdot10^{-3}` of their
+    kinetic energy, independent of the time step. ``symmetric`` drops the factor (Gibou, Fedkiw, Cheng and
+    Kang, J. Comput. Phys. 176, 205 (2002)): the solve is then reciprocal to round-off and the same particles
+    conserve their energy. The potential stays second-order accurate, with a larger error at the wall nodes
+    (spherical capacitor: rms error within 15% of Shortley-Weller in RZ, 2.5-2.8 times larger in 3D). Use it
+    with ``warpx.eb_e_field = conforming`` or ``centered``.
+
+    Reciprocity also requires that the charge deposition is the transpose of the field gathering. The
+    binomial filter (:pp:param:`warpx.use_filter`, on by default in Cartesian geometry) is applied to the
+    charge only, and near an EB it moves charge onto covered nodes; with ``symmetric`` set
+    ``warpx.use_filter = 0``.
+
+.. pp:param:: warpx.eb_e_field
+    :type: ``string``
+    :default: ``gradient``
+    :optional:
+
+    With electrostatic solvers and an embedded boundary, how :math:`E = -\nabla\phi` is computed from the
+    potential: ``gradient``, ``centered`` or ``conforming``. The numbers below are for a thermal
+    electron-ion plasma in a cylinder with reflecting walls (explicit lab-frame solver, RZ,
+    :math:`16 \times 32` cells, shape 3), which with the wall at the domain boundary gains 1.7% energy in
+    :math:`\omega_{pe} t = 1350`.
+
+    * ``gradient``: AMReX's EB gradient. On an edge cut by the EB it is the one-sided difference over the open
+      length :math:`h\Delta x` of the edge, which amplifies the solver error of :math:`\phi` by :math:`1/h`.
+      Where the EB passes close to a node, the field on that edge, which the particles next to the wall
+      gather, is then much too large: the plasma gained 34% with the wall :math:`10^{-6}` cells beyond a node
+      (2.6% at 0.39 cells, 3.8% in a sphere), and 179% with ``warpx.eb_poisson_stencil = symmetric``.
+
+    * ``centered``: the centered difference used without an EB, with the potential of the EB on the covered
+      nodes. On the cut edges it is the field of a wall at the covered node, so the field at the wall is too
+      weak. With ``warpx.eb_poisson_stencil = symmetric`` it is the field whose forces derive from the
+      electrostatic energy (with energy-conserving gathering), and two particles near the wall conserve their
+      energy. The plasma gained 1.3% (wall near a node) and 2.0% (0.39 cells).
+
+    * ``conforming``: the centered difference of :math:`\phi` with ghost values on the covered nodes next to the
+      fluid that extrapolate :math:`\phi` linearly to the EB potential at the wall (from the nearest open node
+      for :math:`h \ge 1/2`, from the next one otherwise), and the charge deposited on those nodes folded onto
+      the open nodes with the transposed weights before the solve. The field on a cut edge is then the slope to
+      the wall (vacuum coax: 214-233 V/m against 241 V/m at the wall, ``centered`` 41-136 V/m), and charge
+      assignment and field interpolation stay transposes of each other, so that with
+      ``warpx.eb_poisson_stencil = symmetric`` the forces still derive from the electrostatic energy. In 1D this
+      is the linear finite-element method with the last element ending at the wall. The plasma gained 0.5%
+      (wall near a node), 0.8% (0.39 cells) and 0.7% (sphere). The weights are built once per level into
+      lists of the nodes next to the EB (3D, a cylinder 32 cells across: 0.3 MB, built in 8 ms, and 0.6% of
+      the time of the space-charge field); ``phi`` gets 2 ghost cells with an EB.
+
 .. pp:param:: boundary.particle_eb
     :type: ``string``
     :default: ``Absorbing``

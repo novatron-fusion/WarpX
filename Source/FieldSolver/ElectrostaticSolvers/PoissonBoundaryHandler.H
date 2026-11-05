@@ -10,12 +10,14 @@
 #define WARPX_BOUNDARYHANDLER_H_
 
 #include "Utils/Parser/ParserUtils.H"
+#include "Utils/TextMsg.H"
 
 #include <AMReX_Array.H>
 #include <AMReX_Geometry.H>
 #include <AMReX_MultiFab.H>
 #include <AMReX_MLMG.H>
 #include <AMReX_REAL.H>
+#include <AMReX_ParmParse.H>
 #include <AMReX_Parser.H>
 
 #include <array>
@@ -113,6 +115,49 @@ private:
     amrex::Parser potential_zhi_parser;
     amrex::Parser potential_eb_parser;
 };
+
+/** \brief With an embedded boundary, how E = -grad phi is computed
+ *  (warpx.eb_e_field).
+ *
+ *  Gradient: AMReX's EB gradient. On an edge cut by the EB it is the
+ *  one-sided difference over the open length h dx, which amplifies the error
+ *  of phi at the uncovered node by 1/h. Where the EB passes close to a node,
+ *  the field on that edge, which particles near the wall gather, is then far
+ *  too large and heats them.
+ *
+ *  Centered: the centered difference of WarpX::computeE, with the potential
+ *  of the EB on the covered nodes. It is bounded; on the cut edges it is the
+ *  field of a wall at the covered node. With the symmetric EB Poisson stencil
+ *  (warpx.eb_poisson_stencil) its forces derive from the electrostatic
+ *  energy.
+ *
+ *  Conforming: the centered difference of phi with ghost values on the
+ *  covered nodes next to the fluid that extrapolate phi to the EB potential
+ *  at the wall, and the charge deposited on those nodes folded onto the open
+ *  nodes with the transposed weights (EBConformingGhost): the field at the
+ *  wall to first order, consistent with the charge assignment. */
+enum struct EBEfieldMethod { Gradient, Centered, Conforming };
+
+inline EBEfieldMethod GetEBEfieldMethod ()
+{
+    static int method = -1;
+    if (method < 0) {
+        std::string s = "gradient";
+        amrex::ParmParse("warpx").query("eb_e_field", s);
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
+            s == "gradient" || s == "centered" || s == "conforming",
+            "warpx.eb_e_field must be gradient, centered or conforming");
+        method = (s == "gradient") ? 0 : (s == "centered") ? 1 : 2;
+    }
+    return static_cast<EBEfieldMethod>(method);
+}
+
+/** \brief Whether E is computed by WarpX::computeE also with an EB (all but
+ *  warpx.eb_e_field = gradient). */
+inline bool UseCenteredEBEfield ()
+{
+    return GetEBEfieldMethod() != EBEfieldMethod::Gradient;
+}
 
 /** use amrex to directly calculate the electric field since with EB's the
  *

@@ -180,6 +180,7 @@ computeEffectivePotentialPhi (
                 linop_nodelap->setRZ(true);
             }
             linop_nodelap->setSigma(lev, sigma);
+            linop_nodelap->setEBSymmetric(mlmg_options.eb_symmetric);
             linop = std::move(linop_nodelap);
 #endif
         }
