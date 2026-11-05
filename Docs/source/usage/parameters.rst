@@ -1259,16 +1259,18 @@ additionally define the electric potential at the embedded boundary with an anal
 
     With electrostatic solvers and an embedded boundary, the stencil of the Poisson operator at the nodes next
     to the EB: ``shortley_weller`` or ``symmetric``. Shortley-Weller weights the links of such a node by
-    :math:`2/(h^- + h^+)` per direction (:math:`h` the open length of the edge in cells), so that the
-    potential at a point :math:`b` of a charge on the node next to the EB is :math:`(1+h)/2` times the
-    potential at that node of the same charge at :math:`b`. Charges near the wall then act on the others with
-    forces that differ from those they feel, and the energy of a plasma is not conserved: two charged particles
-    of which one is reflected at the wall changed their total energy by :math:`1-2\cdot10^{-3}` of their
-    kinetic energy, independent of the time step. ``symmetric`` drops the factor (Gibou, Fedkiw, Cheng and
-    Kang, J. Comput. Phys. 176, 205 (2002)): the solve is then reciprocal to round-off and the same particles
-    conserve their energy. The potential stays second-order accurate, with a larger error at the wall nodes
-    (spherical capacitor: rms error within 15% of Shortley-Weller in RZ, 2.5-2.8 times larger in 3D). Use it
-    with ``warpx.eb_e_field = conforming`` or ``centered``.
+    :math:`2/(h^- + h^+)` per direction, where :math:`h^-` and :math:`h^+` are the uncovered lengths, in
+    cells, of the edges from the node to its two neighbors in that direction (1 for an edge the EB does not
+    cut). The potential at a point :math:`b` of a charge on a node with one cut edge, of uncovered length
+    :math:`h`, is then :math:`(1+h)/2` times the potential at that node of the same charge at :math:`b`.
+    Charges near the wall then act on the others with forces that differ from those they feel, and the energy
+    of a plasma is not conserved: two charged particles of which one is reflected at the wall changed their
+    total energy by :math:`1-2\cdot10^{-3}` of their kinetic energy, independent of the time step.
+    ``symmetric`` drops the factor (Gibou, Fedkiw, Cheng and Kang, J. Comput. Phys. 176, 205 (2002)): the
+    solve is then reciprocal to round-off and the same particles conserve their energy. The potential stays
+    second-order accurate, with a larger error at the wall nodes (spherical capacitor: rms error within 15% of
+    Shortley-Weller in RZ, 2.5-2.8 times larger in 3D). Use it with ``warpx.eb_e_field = conforming`` or
+    ``centered``.
 
     Reciprocity also requires that the charge deposition is the transpose of the field gathering. The
     binomial filter (:pp:param:`warpx.use_filter`, on by default in Cartesian geometry) is applied to the
