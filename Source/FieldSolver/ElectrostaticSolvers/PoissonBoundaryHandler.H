@@ -119,23 +119,28 @@ private:
 /** \brief With an embedded boundary, how E = -grad phi is computed
  *  (warpx.eb_e_field).
  *
- *  Gradient: AMReX's EB gradient. On an edge cut by the EB it is the
- *  one-sided difference over the open length h dx, which amplifies the error
- *  of phi at the uncovered node by 1/h. Where the EB passes close to a node,
- *  the field on that edge, which particles near the wall gather, is then far
- *  too large and heats them.
+ *  Covered nodes lie inside the EB; a cut edge joins an uncovered node to a
+ *  covered node, and the EB crosses it at the distance h dx from the
+ *  uncovered node.
+ *
+ *  Gradient: AMReX's EB gradient. On a cut edge it is the one-sided
+ *  difference over the length h dx, which amplifies the error of phi at the
+ *  uncovered node by 1/h. Where the EB passes close to a node, the field on
+ *  that edge, which particles near the wall gather, is then far too large
+ *  and heats them.
  *
  *  Centered: the centered difference of WarpX::computeE, with the potential
  *  of the EB on the covered nodes. It is bounded; on the cut edges it is the
- *  field of a wall at the covered node. With the symmetric EB Poisson stencil
- *  (warpx.eb_poisson_stencil) its forces derive from the electrostatic
- *  energy.
+ *  field of a wall at the covered node rather than at the EB. With the
+ *  symmetric EB Poisson stencil (warpx.eb_poisson_stencil) the force on each
+ *  particle is minus the gradient of the electrostatic energy.
  *
  *  Conforming: the centered difference of phi with ghost values on the
- *  covered nodes next to the fluid that extrapolate phi to the EB potential
- *  at the wall, and the charge deposited on those nodes folded onto the open
- *  nodes with the transposed weights (EBConformingGhost): the field at the
- *  wall to first order, consistent with the charge assignment. */
+ *  covered nodes next to uncovered nodes that extrapolate phi to the EB
+ *  potential at the wall, and the charge deposited on those covered nodes
+ *  moved to the uncovered nodes with the transposed weights
+ *  (EBConformingGhost): the field at the wall to first order, consistent
+ *  with the charge assignment. */
 enum struct EBEfieldMethod { Gradient, Centered, Conforming };
 
 inline EBEfieldMethod GetEBEfieldMethod ()

@@ -146,8 +146,8 @@ public:
     /** Ghost values and charge folding of warpx.eb_e_field = conforming */
     EBConformingGhost m_eb_conforming;
 
-    /** With warpx.eb_e_field = conforming: fold the charge of the covered
-     *  nodes onto the open nodes (sign = 1) or undo it (sign = -1). */
+    /** With warpx.eb_e_field = conforming: move the charge of the covered
+     *  nodes to the uncovered nodes (sign = 1) or undo it (sign = -1). */
     void foldEBCharge (ablastr::fields::MultiLevelScalarField const& rho, amrex::Real sign);
 
     /** With warpx.eb_e_field = conforming: the field of the ghost values,

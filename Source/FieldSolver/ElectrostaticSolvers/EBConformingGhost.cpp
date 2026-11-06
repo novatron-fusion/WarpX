@@ -155,7 +155,7 @@ EBConformingGhost::Build (LevelLists& L, amrex::MultiFab const& mf, int lev)
                 for (int s = -1; s <= 1; s += 2) {
                     amrex::IntVect const i = k + s*e;
                     if (!avail(i) || covered(i)) { continue; }
-                    // open length from i toward k
+                    // uncovered length from i toward k
                     amrex::Real h = 1.0_rt;
                     amrex::IntVect const lo = (s < 0) ? i : k;
                     if (pa[d].contains(lo)) {
@@ -254,7 +254,7 @@ EBConformingGhost::Build (LevelLists& L, amrex::MultiFab const& mf, int lev)
         + nweights*(sz_iv + sz_r);
     amrex::Print() << "EB conforming field, level " << lev << ": " << nfill
                    << " covered nodes with ghost values, " << nfold
-                   << " open nodes receiving folded charge, " << bytes << " bytes\n";
+                   << " uncovered nodes receiving folded charge, " << bytes << " bytes\n";
 #else
     amrex::ignore_unused(mf, lev);
 #endif
@@ -284,7 +284,7 @@ EBConformingGhost::FoldCharge (amrex::MultiFab& rho, int lev, amrex::Real sign)
         auto const* src = B.fold_src.data();
         auto const* w = B.fold_w.data();
         auto const& r = rho.array(mfi);
-        // each entry writes its own open node and reads covered nodes only
+        // each entry writes its own uncovered node and reads covered nodes only
         amrex::ParallelFor(n, [=] AMREX_GPU_DEVICE (int e) noexcept
         {
             amrex::Real s = 0.0_rt;
@@ -318,7 +318,7 @@ EBConformingGhost::FillGhost (amrex::MultiFab& phi, int lev)
         auto const* w = B.fill_w.data();
         auto* saved = B.saved.data();
         auto const& p = phi.array(mfi);
-        // each entry writes its own covered node and reads open nodes only
+        // each entry writes its own covered node and reads uncovered nodes only
         amrex::ParallelFor(n, [=] AMREX_GPU_DEVICE (int e) noexcept
         {
             amrex::Real const peb = p(node[e]);

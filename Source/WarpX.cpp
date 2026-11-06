@@ -2791,7 +2791,7 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
         electrostatic_solver_id == ElectrostaticSolverAlgo::LabFrameEffectivePotential )
     {
         // 2 with an EB: the ghost values of warpx.eb_e_field = conforming
-        // extrapolate from open nodes up to 2 nodes away
+        // extrapolate from uncovered nodes up to 2 nodes away
         const IntVect ngPhi = IntVect(1 + int(EB::enabled()));
         m_fields.alloc_init(FieldType::phi_fp, lev, amrex::convert(ba, phi_nodal_flag), dm,
                              ncomps, ngPhi, 0.0_rt );
