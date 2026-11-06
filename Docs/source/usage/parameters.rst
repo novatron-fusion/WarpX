@@ -1320,19 +1320,26 @@ additionally define the electric potential at the embedded boundary with an anal
       (:math:`h = 1.6\cdot10^{-6}`) and 2.0% (:math:`h = 0.39`).
 
     * ``conforming``: the centered difference of :math:`\phi` with ghost values, used only for the field, on
-      the covered nodes next to uncovered nodes. They extrapolate :math:`\phi` linearly to :math:`\phi_{EB}`
-      at the EB, from the uncovered node on the cut edge for :math:`h \ge 1/2` and from the next uncovered
-      node otherwise. Before the solve, the charge deposited on those covered nodes is moved to the uncovered
-      nodes with the transposed weights. The field on a cut edge is then
-      :math:`(\phi_{EB} - \phi)/(h\Delta x)` for :math:`h \ge 1/2`; in a vacuum coaxial capacitor, :math:`E_r`
-      on the cut edge at the inner conductor is 214-233 V/m against 241 V/m at its surface (``centered``:
-      41-136 V/m). Charge assignment and field interpolation stay transposes of each other, so that with
-      ``warpx.eb_poisson_stencil = symmetric`` the force on each particle is still minus the gradient of the
-      electrostatic energy. In 1D this is the linear finite-element method with the last element ending at the
-      wall. The plasma gained 0.5% (:math:`h = 1.6\cdot10^{-6}`), 0.8% (:math:`h = 0.39`) and 0.7% (sphere).
-      The weights are built once per level into lists of the nodes next to the EB (3D, a cylinder of radius
-      13.4 cells: 0.3 MB, built in 8 ms, and 0.6% of the time of the space-charge field); ``phi`` gets 2 ghost
-      cells with an EB.
+      the covered nodes that the particles next to the EB interpolate from. The covered nodes next to
+      uncovered nodes extrapolate :math:`\phi` linearly to :math:`\phi_{EB}` at the EB, from the uncovered
+      node on the cut edge for :math:`h \ge 1/2` and from the next uncovered node otherwise. The other covered
+      nodes within :math:`D` nodes of an uncovered node in each direction (:math:`D = 1` for linear,
+      :math:`D = 2` for quadratic and cubic particle shapes) extrapolate linearly along an edge from those, in
+      layers. Before the solve, the charge deposited on the covered nodes is moved to the uncovered nodes with
+      the transposed weights. The field on a cut edge is then :math:`(\phi_{EB} - \phi)/(h\Delta x)` for
+      :math:`h \ge 1/2`; in a vacuum coaxial capacitor, :math:`E_r` on the cut edge at the inner conductor is
+      214-233 V/m against 241 V/m at its surface (``centered``: 41-136 V/m). For test particles within 1.5
+      cells of the spheres of a spherical capacitor (32 to 128 cells per unit length, RZ and 3D), the largest
+      error of the gathered field is 3-10% with linear and 4-9% with cubic particles, against 38-84% with
+      ghost values on the covered nodes next to uncovered nodes only; with cubic particles it is about 3 times
+      larger next to the wall than 1.5 cells away. Charge assignment and field interpolation stay transposes
+      of each other, so that with ``warpx.eb_poisson_stencil = symmetric`` the force on each particle is
+      still minus the gradient of the electrostatic energy. In 1D this is the linear finite-element method
+      with the last element ending at the wall. The total energy of the plasma changed by -0.7%
+      (:math:`h = 1.6\cdot10^{-6}`), +0.4% (:math:`h = 0.39`) and -0.3% (sphere). The weights are built once
+      per level into lists of the nodes near the EB (3D, a cylinder of radius 13.4 cells, cubic particles:
+      1.4 MB in 4 layers, built in 0.08 s, and 5% of the time of the space-charge field); ``phi`` gets 2
+      ghost cells with an EB.
 
 .. pp:param:: boundary.particle_eb
     :type: ``string``

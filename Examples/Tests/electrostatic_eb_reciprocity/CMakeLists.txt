@@ -48,3 +48,27 @@ if(WarpX_EB)
         OFF  # dependency
     )
 endif()
+
+if(WarpX_EB)
+    add_warpx_test(
+        test_rz_electrostatic_eb_nearwall_conforming_picmi  # name
+        RZ  # dims
+        1  # nprocs
+        "inputs_test_rz_electrostatic_eb_nearwall_picmi.py --eb-e-field conforming --eb-poisson-stencil symmetric"  # inputs
+        "analysis_nearwall.py"  # analysis
+        OFF  # checksum
+        OFF  # dependency
+    )
+endif()
+
+if(WarpX_EB)
+    add_warpx_test(
+        test_rz_electrostatic_eb_nearwall_conforming_shape3_picmi  # name
+        RZ  # dims
+        1  # nprocs
+        "inputs_test_rz_electrostatic_eb_nearwall_picmi.py --eb-e-field conforming --eb-poisson-stencil symmetric --shape 3"  # inputs
+        "analysis_nearwall.py"  # analysis
+        OFF  # checksum
+        OFF  # dependency
+    )
+endif()
