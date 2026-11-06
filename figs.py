@@ -131,13 +131,15 @@ def fig_sphcap_maps():
     im = ax.pcolormesh(r, z, phi.T, cmap=SEQ, shading="nearest")
     fig.colorbar(im, ax=ax, shrink=0.7, label="φ (V)")
     ax.set_title("potential φ\n(symmetric stencil)")
-    lim = np.nanmax(np.abs(ey)) * 1e3
+    lim = np.nanmax(np.abs(ey)) * 100            # percent
     norm = TwoSlopeNorm(0.0, -lim, lim)
     for ax, e, name in ((axs[1], es, "Shortley-Weller"), (axs[2], ey, "symmetric")):
         ax.set_facecolor(COVERED)
-        im = ax.pcolormesh(r, z, (e * 1e3).T, cmap=DIV, norm=norm, shading="nearest")
-        ax.set_title(f"{name}: (φ − φ_exact) / 70 V\nmax |…| = {np.nanmax(np.abs(e)) * 1e3:.2f}e-3")
-    fig.colorbar(im, ax=axs[1:], shrink=0.7, label="(φ − φ_exact) / 70 V  (×10⁻³)")
+        im = ax.pcolormesh(r, z, (e * 100).T, cmap=DIV, norm=norm, shading="nearest")
+        ax.set_title(f"{name}: (φ − φ_exact) / 70 V\nlargest magnitude {np.nanmax(np.abs(e)) * 100:.3f} %")
+    cb = fig.colorbar(im, ax=axs[1:], shrink=0.7, label="(φ − φ_exact) / 70 V")
+    cb.set_ticks(np.linspace(-0.06, 0.06, 7))
+    cb.ax.set_yticklabels([f"{v:+.2f} %".replace("+0.00", "0").replace("-", "−") for v in np.linspace(-0.06, 0.06, 7)])
     for ax in axs:
         ax.set_aspect("equal"); ax.set_xlim(0, 1); ax.set_ylim(-1, 1)
         ax.set_xlabel("r (m)"); ax.grid(False)
