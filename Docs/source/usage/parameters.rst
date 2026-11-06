@@ -1338,7 +1338,7 @@ additionally define the electric potential at the embedded boundary with an anal
       with the last element ending at the wall. The total energy of the plasma changed by -0.7%
       (:math:`h = 1.6\cdot10^{-6}`), +0.4% (:math:`h = 0.39`) and -0.3% (sphere). The weights are built once
       per level into lists of the nodes near the EB (3D, a cylinder of radius 13.4 cells, cubic particles:
-      1.4 MB in 4 layers, built in 0.08 s, and 5% of the time of the space-charge field); ``phi`` gets 2
+      1.4 MB in 4 layers, built in 0.08 s, and 2% of the time of the space-charge field); ``phi`` gets 2
       ghost cells with an EB.
 
 .. pp:param:: boundary.particle_eb
