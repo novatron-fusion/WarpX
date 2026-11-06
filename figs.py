@@ -61,52 +61,58 @@ def fig_nearwall_dist():
         ax0, ax1 = axs[row]
         for (label, col, ls, mk), fn in zip(METHODS, FILES[shape]):
             _, t, err, _ = nearwall_errors(NW / fn)
-            e = np.sort(err)
-            frac = 1.0 - np.arange(len(e)) / len(e)
-            ax0.step(e, frac, where="post", color=col, ls=ls, label=label)
+            e = np.sort(err)[::-1]                      # largest first
+            frac = (np.arange(len(e)) + 1) / len(e)     # fraction of particles with an error >= e
+            ax0.plot(frac, e, color=col, ls=ls, label=label)
             mx = [err[(t >= a) & (t < b)].max() for a, b in zip(edges[:-1], edges[1:])]
             ax1.plot(mid, mx, color=col, ls=ls, marker=mk, markersize=5, label=label)
         name = "linear" if shape == 1 else "cubic"
         ax0.set_xscale("log"); ax0.set_yscale("log")
-        ax0.set_xlim(1e-4, 1.2); ax0.set_ylim(2e-4, 1.05)
-        ax0.set_xlabel("relative error of the gathered field |E − E_exact| / |E_exact|")
-        ax0.set_ylabel("fraction of particles with a larger error")
+        ax0.set_xlim(2e-4, 1); ax0.set_ylim(1e-4, 1.2)
+        ax0.set_xlabel("fraction of particles with at least this error (worst on the left)")
+        ax0.set_ylabel("relative error |E − E_exact| / |E_exact|")
         ax0.set_title(f"{name} particles: distribution")
         ax1.set_yscale("log"); ax1.set_ylim(3e-3, 1.2); ax1.set_xlim(0, 1.5)
         ax1.set_xlabel("distance of the particle to the wall (cells)")
         ax1.set_ylabel("largest relative error in the bin")
         ax1.set_title(f"{name} particles: largest error vs distance")
     axs[0][0].legend(loc="lower left")
+    for a in axs.flat:
+        a.set_ylim(1e-4 if a in axs[:, 0] else 3e-3, 1.2)
     fig.suptitle("Field gathered by 4000 test particles within 1.5 cells of the spheres\n"
                  "of the spherical capacitor (3D, n = 64; symmetric stencil with conforming)", fontsize=10.5, color=INK2)
     fig.savefig(OUT / "nearwall_error_distribution.png", dpi=150)
 
 
 def fig_nearwall_map():
-    fig, axs = plt.subplots(2, 3, figsize=(12, 8.2), constrained_layout=True)
-    norm = LogNorm(1e-3, 1.0)
+    fig, axs = plt.subplots(2, 3, figsize=(12, 7.6), sharex=True, sharey=True, constrained_layout=True)
+    n = 64
     for row, shape in enumerate((1, 3)):
-        for colix, ((label, _, _, _), fn) in enumerate(zip(METHODS, FILES[shape])):
+        for colix, ((label, col, _, _), fn) in enumerate(zip(METHODS, FILES[shape])):
             ax = axs[row][colix]
             p, t, err, outer = nearwall_errors(NW / fn)
-            m = (~outer) & (p[:, 2] > 0)          # inner sphere, upper half, seen from +z
-            o = np.argsort(err[m])                 # draw the large errors on top
-            sc = ax.scatter(p[m, 0][o], p[m, 1][o], c=err[m][o], cmap=SEQ, norm=norm, s=14,
-                            edgecolors="none")
-            ax.add_patch(plt.Circle((0, 0), A, fill=False, color=INK2, lw=0.8))
-            ax.set_xticks([-0.3, -0.15, 0, 0.15, 0.3]); ax.set_yticks([-0.3, -0.15, 0, 0.15, 0.3])
-            ax.set_xlim(-0.34, 0.34); ax.set_ylim(-0.34, 0.34); ax.set_aspect("equal")
-            ax.set_title(f"{'linear' if shape == 1 else 'cubic'} particles\n{label}\n"
-                         f"max {err[m].max() * 100:.0f} %, 95th pct. {np.percentile(err[m], 95) * 100:.1f} %",
-                         fontsize=9.5)
-            ax.set_xlabel("x (m)")
+            m = ~outer                                  # inner sphere: the gap is at r > a
+            r = np.linalg.norm(p[m], axis=1)
+            ax.scatter(r, err[m], s=6, color=col, alpha=0.45, edgecolors="none")
+            edges = A + np.arange(0, 1.51, 0.1) / n
+            mx = [err[m][(r >= a) & (r < b)].max() for a, b in zip(edges[:-1], edges[1:])]
+            ax.step(edges, mx + [mx[-1]], where="post", color=INK, lw=1.2, label="largest in 0.1-cell bins")
+            ax.axvline(A, color=INK2, lw=1.0)
+            for k in range(1, 2):
+                ax.axvline(A + k / n, color=GRID, lw=0.8, ls=":")
+            ax.set_yscale("log"); ax.set_ylim(1e-4, 1.2); ax.set_xlim(A - 0.03 / n, A + 1.53 / n)
+            ax.set_title(f"{'linear' if shape == 1 else 'cubic'} particles\n{label}", fontsize=9.5)
+            if row == 1:
+                ax.set_xlabel("distance from the centre r (m)")
             if colix == 0:
-                ax.set_ylabel("y (m)")
-            ax.tick_params(labelsize=8)
-    cb = fig.colorbar(sc, ax=axs, shrink=0.6, location="right")
-    cb.set_label("relative error of the gathered field")
-    fig.suptitle("Test particles within 1.5 cells of the inner sphere (radius 0.3117 m, upper half, seen from +z),\n"
-                 "coloured by the relative error of the field they gather; 3D, n = 64", fontsize=10.5, color=INK2)
+                ax.set_ylabel("relative error |E − E_exact| / |E_exact|")
+            ax.annotate("wall", (A, 1.5e-4), xytext=(3, 0), textcoords="offset points", color=INK2, fontsize=8.5)
+            sec = ax.secondary_xaxis("top", functions=(lambda x: (x - A) * n, lambda c: A + c / n))
+            if row == 0:
+                sec.set_xlabel("distance to the wall (cells)")
+    axs[0][0].legend(loc="upper right", fontsize=8.5)
+    fig.suptitle("Test particles within 1.5 cells of the inner sphere (radius a = 0.3117 m; the gap is at r > a):\n"
+                 "relative error of the field they gather against r; 3D, n = 64", fontsize=10.5, color=INK2)
     fig.savefig(OUT / "nearwall_error_map.png", dpi=150)
 
 
@@ -125,12 +131,14 @@ def fig_sphcap_maps():
     _, ey = sph(n, "symmetric")
     r = d["r"][:, 0]; z = d["z"][0, :] - 1
     fig, axs = plt.subplots(1, 3, figsize=(12, 6.4), constrained_layout=True)
-    phi = np.where(d["gap"], d["phi"], np.nan)
+    rf = np.linspace(0, 1, 401); zf = np.linspace(-1, 1, 801)
+    RF, ZF = np.meshgrid(rf, zf, indexing="ij"); RHO = np.hypot(RF, ZF)
+    phi = np.where((RHO > A) & (RHO < B), VO + K * (1 / np.maximum(RHO, 1e-9) - 1 / B), np.nan)
     ax = axs[0]
     ax.set_facecolor(COVERED)
-    im = ax.pcolormesh(r, z, phi.T, cmap=SEQ, shading="nearest")
-    fig.colorbar(im, ax=ax, shrink=0.7, label="φ (V)")
-    ax.set_title("potential φ\n(symmetric stencil)")
+    im = ax.pcolormesh(rf, zf, phi.T, cmap=SEQ, shading="nearest")
+    fig.colorbar(im, ax=ax, shrink=0.7, label="φ_exact (V)")
+    ax.set_title("exact potential\nφ_exact = V_o + K (1/ρ − 1/b)")
     lim = np.nanmax(np.abs(ey)) * 100            # percent
     norm = TwoSlopeNorm(0.0, -lim, lim)
     for ax, e, name in ((axs[1], es, "Shortley-Weller"), (axs[2], ey, "symmetric")):
@@ -147,8 +155,9 @@ def fig_sphcap_maps():
             th = np.linspace(-np.pi / 2, np.pi / 2, 200)
             ax.plot(R * np.cos(th), R * np.sin(th), color=INK2, lw=0.7)
     axs[0].set_ylabel("z − 1 (m)")
-    fig.suptitle("Spherical capacitor in RZ, n = 64: spheres of radius 0.3117 m at 50 V and 0.8233 m at −20 V;\n"
-                 "covered nodes in gray", fontsize=10.5, color=INK2)
+    fig.suptitle("Spherical capacitor in RZ, n = 64: spheres of radius a = 0.3117 m at V = 50 V and b = 0.8233 m at "
+                 "V_o = −20 V;\nρ = distance from the centre, K = (V − V_o) / (1/a − 1/b); covered nodes in gray",
+                 fontsize=10.5, color=INK2)
     fig.savefig(OUT / "sphcap_rz_maps.png", dpi=150)
 
 
