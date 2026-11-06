@@ -1279,9 +1279,13 @@ additionally define the electric potential at the embedded boundary with an anal
     up to :math:`2\cdot10^{-3}` of their kinetic energy, and the change does not decrease with the time step.
     ``symmetric`` drops the factor (Gibou, Fedkiw, Cheng and Kang, J. Comput. Phys. 176, 205 (2002)): the
     solve is then reciprocal to round-off and the same particles conserve their energy. The potential stays
-    second-order accurate, with a larger error at the nodes next to the EB (rms error in a spherical capacitor
-    within 15% of Shortley-Weller in RZ, 2.5-2.8 times larger in 3D). Use it with
-    ``warpx.eb_e_field = conforming`` or ``centered``.
+    second-order accurate in rms, but less accurate than with Shortley-Weller, most of all at the nodes next
+    to the EB. In a spherical capacitor the rms error is 12-21% larger in RZ and 2.5-2.8 times larger in 3D,
+    and the maximum error, at the nodes next to the EB, is 2.1-3.6 times larger in RZ (16 to 128 cells per
+    unit length). The reason is that at a node next to the EB the stencil weights the directions by
+    :math:`(h^- + h^+)/2`. Use ``symmetric`` for particles near the EB, with ``warpx.eb_e_field = conforming``
+    or ``centered``; for electrode problems without particles near the EB, Shortley-Weller is more
+    accurate.
 
     Reciprocity also requires that the charge deposition is the transpose of the field gathering. The binomial
     filter (:pp:param:`warpx.use_filter`, on by default in Cartesian geometry) is applied to the charge only,
