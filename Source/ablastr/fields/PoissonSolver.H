@@ -377,6 +377,7 @@ computePhi (
                 }
             }
 #endif
+            if (eb_enabled) { linop_nodelap->setEBSymmetric(mlmg_options.eb_symmetric); }
             linop = std::move(linop_nodelap);
         } else {
             // In the absence of EB and RZ: use a more generic solver

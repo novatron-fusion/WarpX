@@ -64,6 +64,9 @@ void LabFrameExplicitES::ComputeSpaceChargeField (
     // set the boundary potentials appropriately
     setPhiBC(phi_fp, warpx.gett_new(0));
 
+    bool const conforming = EB::enabled()
+        && GetEBEfieldMethod() == EBEfieldMethod::Conforming;
+
     // Compute the potential phi, by solving the Poisson equation
     if (IsPythonCallbackInstalled("poissonsolver")) {
 
@@ -80,15 +83,21 @@ void LabFrameExplicitES::ComputeSpaceChargeField (
         // Use the AMREX MLMG or the FFT (IGF) solver otherwise
         ablastr::fields::MLMGOptions mlmg_options = m_mlmg_options;
         mlmg_options.verbosity = verbose_step ? m_mlmg_options.verbosity : 0;
+        if (conforming) { foldEBCharge(rho_fp, 1.0_rt); }
         computePhi(rho_fp, phi_fp, beta, mlmg_options, is_igf_2d_slices,
                    Efield_fp);
+        if (conforming) { foldEBCharge(rho_fp, -1.0_rt); }
 #endif
 
     }
 
     // Compute the electric field. Note that if an EB is used the electric
     // field will be calculated in the computePhi call.
-    if (!EB::enabled()) { computeE( Efield_fp, phi_fp, beta ); }
+    if (conforming) {
+        computeEConforming( Efield_fp, phi_fp, beta );
+    } else if (!EB::enabled() || UseCenteredEBEfield()) {
+        computeE( Efield_fp, phi_fp, beta );
+    }
     else {
         if (IsPythonCallbackInstalled("poissonsolver")) { computeE(Efield_fp, phi_fp, beta); }
     }

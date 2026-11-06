@@ -14,6 +14,7 @@
 #include "WarpX.H"
 
 #include <ablastr/fields/PoissonSolver.H>
+#include <ablastr/warn_manager/WarnManager.H>
 
 #include <string>
 
@@ -83,6 +84,34 @@ void ElectrostaticSolver::ReadParameters () {
     utils::parser::queryWithParser(
         pp_warpx, "self_fields_consolidation_grid_size",
         m_mlmg_options.consolidation_grid_size);
+
+    // EB stencil of the Poisson operator
+    {
+        std::string stencil = "shortley_weller";
+        pp_warpx.query("eb_poisson_stencil", stencil);
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(stencil == "shortley_weller" || stencil == "symmetric",
+            "warpx.eb_poisson_stencil must be shortley_weller or symmetric");
+        m_mlmg_options.eb_symmetric = (stencil == "symmetric");
+        if (!m_mlmg_options.eb_symmetric && EB::enabled()
+            && GetEBEfieldMethod() == EBEfieldMethod::Conforming) {
+            ablastr::warn_manager::WMRecordWarning("Electrostatic solver",
+                "warpx.eb_e_field = conforming is used with "
+                "warpx.eb_poisson_stencil = shortley_weller: the solve is then not "
+                "reciprocal next to the EB and the forces do not derive from the energy. "
+                "Use warpx.eb_poisson_stencil = symmetric.",
+                ablastr::warn_manager::WarnPriority::high);
+        }
+        if (m_mlmg_options.eb_symmetric && EB::enabled()
+            && GetEBEfieldMethod() == EBEfieldMethod::Gradient) {
+            ablastr::warn_manager::WMRecordWarning("Electrostatic solver",
+                "warpx.eb_poisson_stencil = symmetric is used with warpx.eb_e_field = gradient: "
+                "the gradient divides the error of phi at the nodes next to the EB by their "
+                "distance to it, which is larger with this stencil (a thermal plasma gained "
+                "179 % energy with the EB close to a node, against 34 % with "
+                "shortley_weller). Use warpx.eb_e_field = conforming or centered.",
+                ablastr::warn_manager::WarnPriority::high);
+        }
+    }
 
     // FFT solver flags
     utils::parser::queryWithParser(
@@ -190,7 +219,7 @@ ElectrostaticSolver::computePhi (
 #else
     std::optional<amrex::Vector<amrex::FArrayBoxFactory const *> > const eb_farray_box_factory;
 #endif
-    if (EB::enabled() && efield.has_value())
+    if (EB::enabled() && efield.has_value() && !UseCenteredEBEfield())
     {
         // EB: use AMReX to directly calculate the electric field since with EB's the
         // simple finite difference scheme in WarpX::computeE sometimes fails
@@ -257,6 +286,33 @@ ElectrostaticSolver::computePhi (
         eb_farray_box_factory
     );
 
+}
+
+void
+ElectrostaticSolver::foldEBCharge (
+    ablastr::fields::MultiLevelScalarField const& rho, amrex::Real sign)
+{
+    for (int lev = 0; lev < num_levels; lev++) {
+        m_eb_conforming.FoldCharge(*rho[lev], lev, sign);
+    }
+}
+
+void
+ElectrostaticSolver::computeEConforming (
+    ablastr::fields::MultiLevelVectorField const& E,
+    ablastr::fields::MultiLevelScalarField const& phi,
+    std::array<amrex::Real, 3> beta)
+{
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
+        WarpX::grid_type != ablastr::utils::enums::GridType::Collocated,
+        "warpx.eb_e_field = conforming needs a staggered grid");
+    for (int lev = 0; lev < num_levels; lev++) {
+        m_eb_conforming.FillGhost(*phi[lev], lev);
+    }
+    computeE(E, phi, beta);
+    for (int lev = 0; lev < num_levels; lev++) {
+        m_eb_conforming.RestorePhi(*phi[lev], lev);
+    }
 }
 
 void

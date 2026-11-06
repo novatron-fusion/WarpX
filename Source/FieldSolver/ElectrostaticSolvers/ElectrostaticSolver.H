@@ -9,6 +9,7 @@
 #ifndef WARPX_ELECTROSTATICSOLVER_H_
 #define WARPX_ELECTROSTATICSOLVER_H_
 
+#include "EBConformingGhost.H"
 #include "PoissonBoundaryHandler.H"
 #include "Fluids/MultiFluidContainer.H"
 #include "Particles/MultiParticleContainer.H"
@@ -115,6 +116,7 @@ public:
         std::array<amrex::Real, 3> beta
     ) const;
 
+
     /**
      * \brief Compute the magnetic field that corresponds to `phi`, and
      *        add it to the set of MultiFab `B`.
@@ -140,6 +142,20 @@ public:
 
     /** Boundary handler object to set potential for EB and on the domain boundary */
     std::unique_ptr<PoissonBoundaryHandler> m_poisson_boundary_handler;
+
+    /** Ghost values and charge folding of warpx.eb_e_field = conforming */
+    EBConformingGhost m_eb_conforming;
+
+    /** With warpx.eb_e_field = conforming: move the charge of the covered
+     *  nodes to the uncovered nodes (sign = 1) or undo it (sign = -1). */
+    void foldEBCharge (ablastr::fields::MultiLevelScalarField const& rho, amrex::Real sign);
+
+    /** With warpx.eb_e_field = conforming: the field of the ghost values,
+     *  computed with computeE, with the EB potential put back afterwards. */
+    void computeEConforming (
+        ablastr::fields::MultiLevelVectorField const& E,
+        ablastr::fields::MultiLevelScalarField const& phi,
+        std::array<amrex::Real, 3> beta);
 
     /** Parameters of the MLMG Poisson solve, set from the `warpx.self_fields_*`
      *  input parameters
